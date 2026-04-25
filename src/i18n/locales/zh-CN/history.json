@@ -1,0 +1,28 @@
+{
+  "actions": {
+    "backHome": "返回首页"
+  },
+  "analytics": {
+    "accuracy": "命中率趋势",
+    "avgReaction": "平均反应",
+    "bestScore": "最高分",
+    "sessions": "训练次数",
+    "subtitle": "用可视化数据跟踪稳定性、准确率和训练强度。",
+    "title": "ECharts 数据分析",
+    "totalShots": "总射击数"
+  },
+  "empty": {
+    "description": "训练功能接入后，这里会自动读取本地训练记录并生成图表。",
+    "title": "暂无真实训练数据"
+  },
+  "records": {
+    "accuracy": "命中率",
+    "date": "日期",
+    "mode": "模式",
+    "reaction": "反应",
+    "score": "分数",
+    "shots": "射击",
+    "title": "训练记录"
+  },
+  "title": "训练历史"
+}

@@ -1,0 +1,28 @@
+{
+  "actions": {
+    "backHome": "Back Home"
+  },
+  "analytics": {
+    "accuracy": "Accuracy Trend",
+    "avgReaction": "Avg Reaction",
+    "bestScore": "Best Score",
+    "sessions": "Sessions",
+    "subtitle": "Track consistency, accuracy, and training volume with visual analytics.",
+    "title": "ECharts Analytics",
+    "totalShots": "Total Shots"
+  },
+  "empty": {
+    "description": "Once training is connected, this page will read local sessions and generate charts automatically.",
+    "title": "No Real Training Data Yet"
+  },
+  "records": {
+    "accuracy": "Accuracy",
+    "date": "Date",
+    "mode": "Mode",
+    "reaction": "Reaction",
+    "score": "Score",
+    "shots": "Shots",
+    "title": "Training Records"
+  },
+  "title": "Training History"
+}

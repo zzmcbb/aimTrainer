@@ -1,0 +1,30 @@
+{
+  "brand": {
+    "name": "Sightline",
+    "tagline": "Aim Trainer"
+  },
+  "hero": {
+    "chooseMode": "选择模式",
+    "chromeOnly": "仅支持 Chrome 桌面版",
+    "description": "在 Chrome 桌面版中即时训练甩枪、微调和跟枪。不需要安装，只专注训练。",
+    "footer": "为竞技玩家打造。为精准表现优化。",
+    "mvpBadge": "MVP 浏览器训练器",
+    "titleAccent": "就在浏览器中",
+    "titlePrimary": "精准瞄准训练",
+    "viewHistory": "查看训练历史"
+  },
+  "modes": {
+    "grid": {
+      "description": "在固定 3x3 布局中快速切换目标",
+      "title": "Grid 3x3"
+    },
+    "micro": {
+      "description": "围绕准星进行小幅精准修正",
+      "title": "Micro Adjustment"
+    },
+    "tracking": {
+      "description": "平滑跟随目标并控制稳定性",
+      "title": "Tracking"
+    }
+  }
+}

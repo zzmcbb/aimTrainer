@@ -1,0 +1,30 @@
+{
+  "brand": {
+    "name": "Sightline",
+    "tagline": "Aim Trainer"
+  },
+  "hero": {
+    "chooseMode": "Choose Mode",
+    "chromeOnly": "Chrome Desktop Only",
+    "description": "Train flicks, micro-corrections, and tracking instantly on Chrome Desktop. No install required. Just focus.",
+    "footer": "Built for competitive players. Optimized for precision.",
+    "mvpBadge": "MVP Browser Trainer",
+    "titleAccent": "in your browser",
+    "titlePrimary": "Precision aim training",
+    "viewHistory": "Training History"
+  },
+  "modes": {
+    "grid": {
+      "description": "Fast target switching in a fixed 3x3 layout",
+      "title": "Grid 3x3"
+    },
+    "micro": {
+      "description": "Small precision corrections near the crosshair",
+      "title": "Micro Adjustment"
+    },
+    "tracking": {
+      "description": "Smooth target following and stability control",
+      "title": "Tracking"
+    }
+  }
+}
