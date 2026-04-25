@@ -1,0 +1,25 @@
+{
+  "grid3x3": {
+    "accuracy": "Accuracy",
+    "accuracyTrend": "Accuracy Distribution",
+    "averageReaction": "Avg Reaction",
+    "backHome": "Back Home",
+    "clickToStart": "Start locks your pointer. Move to aim, left click to shoot.",
+    "complete": "Training Complete",
+    "continue": "Continue",
+    "duration": "60 seconds",
+    "hitTrend": "Hit Distribution",
+    "hits": "Hits",
+    "misses": "Misses",
+    "mode": "Grid 3x3",
+    "paused": "Paused",
+    "reactionTrend": "Avg Reaction Distribution",
+    "restart": "Restart",
+    "resumeHint": "Click the arena to lock pointer again",
+    "settings": "Settings",
+    "start": "Start Training",
+    "subtitle": "Quickly locate and hit targets in a fixed 3x3 grid.",
+    "time": "Time Left",
+    "title": "Grid Shooting Trainer"
+  }
+}

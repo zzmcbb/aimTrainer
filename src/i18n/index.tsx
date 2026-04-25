@@ -5,11 +5,13 @@ import type { LanguagePreference, SupportedLanguage } from "@/stores/settingsSto
 import zhCNCommon from "@/i18n/locales/zh-CN/common.json";
 import zhCNHistory from "@/i18n/locales/zh-CN/history.json";
 import zhCNHome from "@/i18n/locales/zh-CN/home.json";
+import zhCNTraining from "@/i18n/locales/zh-CN/training.json";
 import enUSCommon from "@/i18n/locales/en-US/common.json";
 import enUSHistory from "@/i18n/locales/en-US/history.json";
 import enUSHome from "@/i18n/locales/en-US/home.json";
+import enUSTraining from "@/i18n/locales/en-US/training.json";
 
-type Namespace = "common" | "history" | "home";
+type Namespace = "common" | "history" | "home" | "training";
 type TranslationTree = Record<string, unknown>;
 type TranslationResources = Record<SupportedLanguage, Record<Namespace, TranslationTree>>;
 
@@ -30,11 +32,13 @@ const resources: TranslationResources = {
     common: zhCNCommon,
     history: zhCNHistory,
     home: zhCNHome,
+    training: zhCNTraining,
   },
   "en-US": {
     common: enUSCommon,
     history: enUSHistory,
     home: enUSHome,
+    training: enUSTraining,
   },
 };
 

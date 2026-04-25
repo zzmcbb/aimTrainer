@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
-import { Chrome, ChevronRight, Crosshair } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Chrome, ChevronRight, Crosshair, Settings } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { GlassCard } from "@/components/home/GlassCard";
@@ -32,6 +32,7 @@ export function HeroSection() {
   const [hoveredCardIndex, setHoveredCardIndex] = useState<number | null>(null);
   const modesRef = useRef<HTMLDivElement>(null);
   const { t } = useTranslation("home");
+  const navigate = useNavigate();
   const scrollToModes = () => {
     modesRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
@@ -98,6 +99,11 @@ export function HeroSection() {
                     {t("hero.viewHistory", { defaultValue: "查看训练历史" })}
                   </Link>
                 </Button>
+
+                <Button size="lg" variant="outline" className="px-10 py-6">
+                  <Settings className="h-4 w-4" />
+                  {t("hero.settings", { defaultValue: "设置" })}
+                </Button>
               </div>
 
               <div className="flex flex-wrap items-center justify-center gap-3">
@@ -125,6 +131,9 @@ export function HeroSection() {
                 mode={mode.mode}
                 title={t(mode.titleKey, { defaultValue: mode.mode })}
                 description={t(mode.descriptionKey, { defaultValue: mode.mode })}
+                onClick={
+                  mode.mode === "grid" ? () => navigate("/training/grid-3x3") : undefined
+                }
                 onHover={(hovering) => setHoveredCardIndex(hovering ? index : null)}
               />
             ))}

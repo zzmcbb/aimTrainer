@@ -1,0 +1,25 @@
+{
+  "grid3x3": {
+    "accuracy": "命中率",
+    "accuracyTrend": "命中率分布",
+    "averageReaction": "平均反应",
+    "backHome": "返回首页",
+    "clickToStart": "点击开始后会锁定鼠标。移动鼠标瞄准，左键射击。",
+    "complete": "训练完成",
+    "continue": "继续游戏",
+    "duration": "60 秒",
+    "hitTrend": "命中分布",
+    "hits": "命中",
+    "misses": "未命中",
+    "mode": "Grid 3x3",
+    "paused": "已暂停",
+    "reactionTrend": "平均反应分布",
+    "restart": "重新开始",
+    "resumeHint": "点击画面重新锁定鼠标",
+    "settings": "设置",
+    "start": "开始训练",
+    "subtitle": "在固定九宫格中快速定位并命中目标。",
+    "time": "剩余时间",
+    "title": "九宫格射击训练"
+  }
+}

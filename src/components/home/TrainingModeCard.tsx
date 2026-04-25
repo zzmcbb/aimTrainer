@@ -9,6 +9,7 @@ interface TrainingModeCardProps {
   mode: Mode;
   title: string;
   description: string;
+  onClick?: () => void;
   onHover: (hovering: boolean) => void;
 }
 
@@ -22,6 +23,7 @@ export function TrainingModeCard({
   mode,
   title,
   description,
+  onClick,
   onHover,
 }: TrainingModeCardProps) {
   const [isHovered, setIsHovered] = useState(false);
@@ -30,7 +32,8 @@ export function TrainingModeCard({
   return (
     <GlassCard
       hover
-      className="group cursor-pointer"
+      className={cn("group", onClick ? "cursor-pointer" : "cursor-default")}
+      onClick={onClick}
       onMouseEnter={() => {
         setIsHovered(true);
         onHover(true);

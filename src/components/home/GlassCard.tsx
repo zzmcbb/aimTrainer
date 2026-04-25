@@ -6,6 +6,7 @@ interface GlassCardProps {
   className?: string;
   hover?: boolean;
   intensity?: "normal" | "high";
+  onClick?: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
 }
@@ -15,6 +16,7 @@ export function GlassCard({
   className,
   hover = false,
   intensity = "normal",
+  onClick,
   onMouseEnter,
   onMouseLeave,
 }: GlassCardProps) {
@@ -22,6 +24,7 @@ export function GlassCard({
 
   return (
     <div
+      onClick={onClick}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       className={cn(
