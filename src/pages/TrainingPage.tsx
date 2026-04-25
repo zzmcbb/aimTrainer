@@ -169,13 +169,57 @@ export function TrainingPage() {
       return false;
     }
 
+    if (document.pointerLockElement === canvas) {
+      return true;
+    }
+
+    const waitForPointerLock = new Promise<boolean>((resolve) => {
+      let settled = false;
+      let timeoutId: number | null = null;
+
+      const cleanup = () => {
+        document.removeEventListener("pointerlockchange", handlePointerLockChange);
+        document.removeEventListener("pointerlockerror", handlePointerLockError);
+
+        if (timeoutId !== null) {
+          window.clearTimeout(timeoutId);
+        }
+      };
+
+      const settle = (locked: boolean) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        cleanup();
+        resolve(locked);
+      };
+
+      const handlePointerLockChange = () => {
+        settle(document.pointerLockElement === canvas);
+      };
+
+      const handlePointerLockError = () => {
+        settle(false);
+      };
+
+      document.addEventListener("pointerlockchange", handlePointerLockChange);
+      document.addEventListener("pointerlockerror", handlePointerLockError);
+      timeoutId = window.setTimeout(() => settle(document.pointerLockElement === canvas), 800);
+    });
+
     try {
       await canvas.requestPointerLock({ unadjustedMovement: true });
     } catch {
-      canvas.requestPointerLock();
+      try {
+        await canvas.requestPointerLock();
+      } catch {
+        return false;
+      }
     }
 
-    return true;
+    return waitForPointerLock;
   }, []);
 
   const clearCountdownTimer = useCallback(() => {

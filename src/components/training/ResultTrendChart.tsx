@@ -33,15 +33,32 @@ export function ResultTrendChart({
     () => ({
       backgroundColor: "transparent",
       color: ["#00d5ff", "#f5a524", "#a78bfa"],
-      grid: {
-        bottom: 38,
-        left: 46,
-        right: 48,
-        top: 54,
+      axisPointer: {
+        link: [{ xAxisIndex: [0, 1, 2] }],
       },
+      grid: [
+        {
+          left: 54,
+          right: 58,
+          top: 38,
+          height: "23%",
+        },
+        {
+          left: 54,
+          right: 58,
+          top: "39%",
+          height: "23%",
+        },
+        {
+          left: 54,
+          right: 58,
+          top: "70%",
+          height: "23%",
+        },
+      ],
       legend: {
-        right: 12,
-        top: 4,
+        left: 8,
+        top: 2,
         textStyle: {
           color: "rgba(255,255,255,0.64)",
         },
@@ -54,28 +71,72 @@ export function ResultTrendChart({
           color: "#f8fafc",
         },
       },
-      xAxis: {
-        type: "category",
-        data: seconds,
-        boundaryGap: false,
-        axisLine: {
-          lineStyle: {
-            color: "rgba(255,255,255,0.14)",
+      xAxis: [
+        {
+          type: "category",
+          gridIndex: 0,
+          data: seconds,
+          boundaryGap: false,
+          axisLine: {
+            lineStyle: {
+              color: "rgba(255,255,255,0.12)",
+            },
+          },
+          axisTick: {
+            show: false,
+          },
+          axisLabel: {
+            show: false,
           },
         },
-        axisLabel: {
-          color: "rgba(255,255,255,0.5)",
-          interval: 4,
+        {
+          type: "category",
+          gridIndex: 1,
+          data: seconds,
+          boundaryGap: false,
+          axisLine: {
+            lineStyle: {
+              color: "rgba(255,255,255,0.12)",
+            },
+          },
+          axisTick: {
+            show: false,
+          },
+          axisLabel: {
+            show: false,
+          },
         },
-      },
+        {
+          type: "category",
+          gridIndex: 2,
+          data: seconds,
+          boundaryGap: false,
+          axisLine: {
+            lineStyle: {
+              color: "rgba(255,255,255,0.14)",
+            },
+          },
+          axisLabel: {
+            color: "rgba(255,255,255,0.5)",
+            interval: 4,
+          },
+        },
+      ],
       yAxis: [
         {
           type: "value",
+          gridIndex: 0,
           min: 0,
           max: 100,
+          name: "%",
+          nameLocation: "middle",
+          nameGap: 36,
+          position: "right",
+          nameTextStyle: {
+            color: "rgba(255,255,255,0.62)",
+          },
           axisLabel: {
             color: "rgba(255,255,255,0.5)",
-            formatter: "{value}%",
           },
           splitLine: {
             lineStyle: {
@@ -85,12 +146,43 @@ export function ResultTrendChart({
         },
         {
           type: "value",
+          gridIndex: 1,
           min: 0,
+          minInterval: 1,
+          name: "hits",
+          nameLocation: "middle",
+          nameGap: 36,
+          position: "right",
+          nameTextStyle: {
+            color: "rgba(255,255,255,0.62)",
+          },
           axisLabel: {
             color: "rgba(255,255,255,0.5)",
           },
           splitLine: {
-            show: false,
+            lineStyle: {
+              color: "rgba(255,255,255,0.07)",
+            },
+          },
+        },
+        {
+          type: "value",
+          gridIndex: 2,
+          min: 0,
+          name: "ms",
+          nameLocation: "middle",
+          nameGap: 36,
+          position: "right",
+          nameTextStyle: {
+            color: "rgba(255,255,255,0.62)",
+          },
+          axisLabel: {
+            color: "rgba(255,255,255,0.5)",
+          },
+          splitLine: {
+            lineStyle: {
+              color: "rgba(255,255,255,0.07)",
+            },
           },
         },
       ],
@@ -98,8 +190,9 @@ export function ResultTrendChart({
         {
           name: accuracyLabel,
           type: "line",
+          xAxisIndex: 0,
           yAxisIndex: 0,
-          smooth: true,
+          smooth: false,
           symbol: "none",
           data: accuracy,
           lineStyle: {
@@ -112,8 +205,9 @@ export function ResultTrendChart({
         {
           name: hitsLabel,
           type: "line",
+          xAxisIndex: 1,
           yAxisIndex: 1,
-          smooth: true,
+          smooth: false,
           symbol: "none",
           data: hits,
           lineStyle: {
@@ -123,8 +217,9 @@ export function ResultTrendChart({
         {
           name: averageReactionLabel,
           type: "line",
-          yAxisIndex: 1,
-          smooth: true,
+          xAxisIndex: 2,
+          yAxisIndex: 2,
+          smooth: false,
           symbol: "none",
           data: averageReaction,
           lineStyle: {
@@ -157,5 +252,5 @@ export function ResultTrendChart({
     chartInstanceRef.current?.setOption(option, true);
   }, [option]);
 
-  return <div ref={chartRef} className="h-64 w-full" />;
+  return <div ref={chartRef} className="h-[420px] w-full" />;
 }
