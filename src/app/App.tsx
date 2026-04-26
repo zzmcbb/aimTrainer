@@ -1,15 +1,15 @@
 import { lazy, Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
-import { HomePage } from "@/pages/HomePage";
+import { HomePage } from "@/pages/home";
 
 const HistoryPage = lazy(() =>
-  import("@/pages/HistoryPage").then((module) => ({ default: module.HistoryPage })),
+  import("@/pages/history").then((module) => ({ default: module.HistoryPage })),
 );
 const TrainingPage = lazy(() =>
-  import("@/pages/TrainingPage").then((module) => ({ default: module.TrainingPage })),
+  import("@/pages/training").then((module) => ({ default: module.TrainingPage })),
 );
 const SettingsPage = lazy(() =>
-  import("@/pages/SettingsPage").then((module) => ({ default: module.SettingsPage })),
+  import("@/pages/settings").then((module) => ({ default: module.SettingsPage })),
 );
 
 export function App() {

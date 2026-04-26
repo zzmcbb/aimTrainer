@@ -1,48 +1,28 @@
-import { useRef, useState } from "react";
 import { Chrome, ChevronRight, Crosshair, Settings } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { GlassCard } from "@/components/home/GlassCard";
 import { ParallaxBackground } from "@/components/home/ParallaxBackground";
 import { TrainingModeCard } from "@/components/home/TrainingModeCard";
 import { LanguageSwitcher } from "@/components/settings/LanguageSwitcher";
-import { useTranslation } from "@/i18n";
 import { cn } from "@/lib/utils";
+import { homePageStyles as styles } from "./homePage.styles";
+import type { HomePageViewModel } from "./useHomePage";
 
-const trainingModes = [
-  {
-    mode: "grid" as const,
-    titleKey: "modes.grid.title",
-    descriptionKey: "modes.grid.description",
-  },
-  {
-    mode: "micro" as const,
-    titleKey: "modes.micro.title",
-    descriptionKey: "modes.micro.description",
-  },
-  {
-    mode: "tracking" as const,
-    titleKey: "modes.tracking.title",
-    descriptionKey: "modes.tracking.description",
-  },
-];
+interface HomePageViewProps {
+  viewModel: HomePageViewModel;
+}
 
-export function HeroSection() {
-  const [hoveredCardIndex, setHoveredCardIndex] = useState<number | null>(null);
-  const modesRef = useRef<HTMLDivElement>(null);
-  const { t } = useTranslation("home");
-  const navigate = useNavigate();
-  const scrollToModes = () => {
-    modesRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-  };
+export function HomePageView({ viewModel }: HomePageViewProps) {
+  const { t, hoveredCardIndex, modesRef, trainingModes, navigate, scrollToModes, setHoveredCardIndex } = viewModel;
 
   return (
-    <main className="relative min-h-screen overflow-hidden">
+    <main className={styles.page}>
       <ParallaxBackground intensityBoost={hoveredCardIndex !== null ? 1 : 0} />
       <LanguageSwitcher />
 
-      <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 py-20">
+      <div className={styles.content}>
         <div className="w-full max-w-5xl">
           <GlassCard intensity="high" className="mb-8 p-10 md:p-14 lg:p-16">
             <div className="flex flex-col items-center text-center">

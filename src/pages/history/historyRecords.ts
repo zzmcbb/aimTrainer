@@ -1,0 +1,38 @@
+export const trainingRecords = [
+  {
+    id: "session-001",
+    date: "04/26",
+    mode: "Grid 3x3",
+    score: 842,
+    accuracy: 72,
+    reaction: 284,
+    shots: 126,
+  },
+  {
+    id: "session-002",
+    date: "04/27",
+    mode: "Micro Adjustment",
+    score: 910,
+    accuracy: 78,
+    reaction: 260,
+    shots: 118,
+  },
+  {
+    id: "session-003",
+    date: "04/28",
+    mode: "Tracking",
+    score: 965,
+    accuracy: 81,
+    reaction: 248,
+    shots: 142,
+  },
+  {
+    id: "session-004",
+    date: "04/29",
+    mode: "Grid 3x3",
+    score: 1030,
+    accuracy: 84,
+    reaction: 235,
+    shots: 151,
+  },
+];
