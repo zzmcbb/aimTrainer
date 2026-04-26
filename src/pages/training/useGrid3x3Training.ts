@@ -454,10 +454,10 @@ export function useGrid3x3Training() {
         gameStateRef.current.isRunning = false;
       }
 
-      setCountdown(3);
+      setCountdown(trainingSettings.startCountdownSeconds);
       setPhase("countdown");
 
-      let nextCount = 3;
+      let nextCount = trainingSettings.startCountdownSeconds;
       countdownTimerRef.current = window.setInterval(() => {
         nextCount -= 1;
 
@@ -486,7 +486,13 @@ export function useGrid3x3Training() {
         setPhase("running");
       }, 1000);
     },
-    [clearCountdownTimer, requestPointerLock, spawnInitialTargets, trainingSettings.durationSeconds],
+    [
+      clearCountdownTimer,
+      requestPointerLock,
+      spawnInitialTargets,
+      trainingSettings.durationSeconds,
+      trainingSettings.startCountdownSeconds,
+    ],
   );
 
   const startTraining = useCallback(() => {

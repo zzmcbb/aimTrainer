@@ -320,7 +320,17 @@ export function SettingsPanel({ className, surface = "page" }: SettingsPanelProp
               <div className="grid gap-5">
               <RangeField
                 icon={TimerReset}
-                label={t("fields.duration", { defaultValue: "Grid 3x3 倒计时" })}
+                label={t("fields.startCountdown", { defaultValue: "开始倒计时" })}
+                value={training.startCountdownSeconds}
+                min={1}
+                max={10}
+                step={1}
+                unit={t("units.seconds", { defaultValue: "秒" })}
+                onChange={(startCountdownSeconds) => setTraining({ startCountdownSeconds })}
+              />
+              <RangeField
+                icon={Clock3}
+                label={t("fields.gridDuration", { defaultValue: "九宫格游戏时长" })}
                 value={training.durationSeconds}
                 min={15}
                 max={180}
@@ -328,9 +338,29 @@ export function SettingsPanel({ className, surface = "page" }: SettingsPanelProp
                 unit={t("units.seconds", { defaultValue: "秒" })}
                 onChange={(durationSeconds) => setTraining({ durationSeconds })}
               />
+              <RangeField
+                icon={Clock3}
+                label={t("fields.microDuration", { defaultValue: "微调训练游戏时长" })}
+                value={training.microDurationSeconds}
+                min={15}
+                max={180}
+                step={5}
+                unit={t("units.seconds", { defaultValue: "秒" })}
+                onChange={(microDurationSeconds) => setTraining({ microDurationSeconds })}
+              />
+              <RangeField
+                icon={Clock3}
+                label={t("fields.trackingDuration", { defaultValue: "跟枪训练游戏时长" })}
+                value={training.trackingDurationSeconds}
+                min={15}
+                max={180}
+                step={5}
+                unit={t("units.seconds", { defaultValue: "秒" })}
+                onChange={(trackingDurationSeconds) => setTraining({ trackingDurationSeconds })}
+              />
               <p className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-muted-foreground">
                 {t("messages.durationNote", {
-                  defaultValue: "默认时长为 60 秒。修改后会在下一次重新开始训练时生效，当前暂停局不会被强制改时长。",
+                  defaultValue: "开始倒计时默认 3 秒，所有模式统一使用。游戏时长修改后会在下一次重新开始训练时生效，当前暂停局不会被强制改时长。",
                 })}
               </p>
               </div>

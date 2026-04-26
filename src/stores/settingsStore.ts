@@ -30,8 +30,11 @@ export interface HitEffectSettings {
 export interface TrainingSettings {
   durationSeconds: number;
   fpsLimit: number;
+  microDurationSeconds: number;
   sensitivityX: number;
   sensitivityY: number;
+  startCountdownSeconds: number;
+  trackingDurationSeconds: number;
 }
 
 interface PersistedSettings {
@@ -77,8 +80,11 @@ export const defaultSettings: PersistedSettings = {
   training: {
     durationSeconds: 60,
     fpsLimit: 240,
+    microDurationSeconds: 60,
     sensitivityX: 0.8,
     sensitivityY: 0.8,
+    startCountdownSeconds: 3,
+    trackingDurationSeconds: 60,
   },
 };
 
@@ -170,8 +176,26 @@ function loadSettings(): PersistedSettings {
           180,
         ),
         fpsLimit: readNumber(settings.training?.fpsLimit, defaultSettings.training.fpsLimit, 30, 240),
+        microDurationSeconds: readNumber(
+          settings.training?.microDurationSeconds,
+          defaultSettings.training.microDurationSeconds,
+          15,
+          180,
+        ),
         sensitivityX: readNumber(settings.training?.sensitivityX, defaultSettings.training.sensitivityX, 0.1, 3),
         sensitivityY: readNumber(settings.training?.sensitivityY, defaultSettings.training.sensitivityY, 0.1, 3),
+        startCountdownSeconds: readNumber(
+          settings.training?.startCountdownSeconds,
+          defaultSettings.training.startCountdownSeconds,
+          1,
+          10,
+        ),
+        trackingDurationSeconds: readNumber(
+          settings.training?.trackingDurationSeconds,
+          defaultSettings.training.trackingDurationSeconds,
+          15,
+          180,
+        ),
       },
     };
   } catch {

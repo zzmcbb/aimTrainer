@@ -18,7 +18,7 @@
     "centerDotEnabledDescription": "显示准星中心点",
     "centerDotSize": "中心点大小",
     "defaultValue": "默认值 {{value}}",
-    "duration": "Grid 3x3 倒计时",
+    "duration": "九宫格游戏时长",
     "dynamicSpreadEnabled": "动态扩散",
     "dynamicSpreadEnabledDescription": "射击时准星短暂扩散后回弹",
     "fpsLimit": "FPS 上限",
@@ -29,10 +29,14 @@
     "outerCrosshairEnabled": "外部准星",
     "outerCrosshairEnabledDescription": "显示准星外部十字线",
     "outerCrosshairOffset": "外部准星偏移",
+    "gridDuration": "九宫格游戏时长",
+    "microDuration": "微调训练游戏时长",
     "sensitivityX": "X 轴灵敏度",
     "sensitivityY": "Y 轴灵敏度",
+    "startCountdown": "开始倒计时",
     "spreadRecoverySeconds": "扩散回弹时间",
-    "targetColor": "小球颜色"
+    "targetColor": "小球颜色",
+    "trackingDuration": "跟枪训练游戏时长"
   },
   "hitEffects": {
     "balloon": {
@@ -62,7 +66,7 @@
     }
   },
   "messages": {
-    "durationNote": "默认时长为 60 秒。修改后会在下一次重新开始训练时生效，当前暂停局不会被强制改时长。",
+    "durationNote": "开始倒计时默认 3 秒，所有模式统一使用。游戏时长修改后会在下一次重新开始训练时生效，当前暂停局不会被强制改时长。",
     "fpsLimitNote": "较低且稳定的 FPS 上限可以减少帧时间波动。修改后会立即应用到训练画面。",
     "hitEffectNote": "击中特效默认关闭；开启后会在命中位置播放，不影响命中判定和成绩记录。",
     "placeholder": "这个菜单位置已保留，后续接入具体玩法参数时可以直接扩展。",
@@ -78,8 +82,8 @@
       "title": "准星设置"
     },
     "duration": {
-      "description": "每局训练时长",
-      "title": "模式倒计时设置"
+      "description": "开始倒计时与各模式游戏时长",
+      "title": "时长设置"
     },
     "fps": {
       "description": "限制渲染帧率以提高稳定性",
