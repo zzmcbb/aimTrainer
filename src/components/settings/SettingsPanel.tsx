@@ -61,7 +61,6 @@ const sections: Array<{
     id: "fps",
     icon: Gauge,
     translationKey: "fps",
-    disabled: true,
   },
 ];
 
@@ -85,15 +84,15 @@ export function SettingsPanel({ className, surface = "page" }: SettingsPanelProp
   return (
     <section
       className={cn(
-        "flex h-full min-h-0 w-full overflow-hidden rounded-3xl border border-white/10 shadow-[0_24px_90px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)]",
+        "flex h-full min-h-0 w-full min-w-0 overflow-hidden rounded-3xl border border-white/10 shadow-[0_24px_90px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)]",
         surface === "glass"
           ? "bg-white/[0.06] backdrop-blur-2xl"
           : "bg-white/[0.035] backdrop-blur-xl",
         className,
       )}
     >
-      <div className="grid min-h-0 flex-1 lg:grid-cols-[285px_minmax(0,1fr)]">
-        <aside className="flex min-h-0 flex-col border-b border-white/10 bg-black/15 p-4 lg:border-b-0 lg:border-r">
+      <div className="grid min-h-0 min-w-0 flex-1 lg:grid-cols-[minmax(285px,clamp(285px,28vw,380px))_minmax(0,1fr)]">
+        <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden border-b border-white/10 bg-black/15 p-4 lg:border-b-0 lg:border-r">
           <div className="mb-4 flex items-center justify-between gap-3 px-2">
             <div>
               <div className="text-xs uppercase tracking-[0.24em] text-primary">
@@ -127,7 +126,7 @@ export function SettingsPanel({ className, surface = "page" }: SettingsPanelProp
             </Button>
           </div>
 
-          <div className="grid min-h-0 gap-2 overflow-y-auto pr-1 [scrollbar-color:rgba(255,255,255,0.24)_transparent] [scrollbar-width:thin]">
+          <div className="grid min-h-0 gap-2 overflow-y-auto overflow-x-hidden pr-1 [scrollbar-color:rgba(255,255,255,0.24)_transparent] [scrollbar-width:thin]">
             {sections.map((section) => {
               const Icon = section.icon;
               const isActive = section.id === activeSection;
@@ -139,7 +138,7 @@ export function SettingsPanel({ className, surface = "page" }: SettingsPanelProp
                   disabled={section.disabled}
                   onClick={() => setActiveSection(section.id)}
                   className={cn(
-                    "group flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-all",
+                    "group flex min-w-0 w-full items-center gap-3 rounded-2xl border p-3 text-left transition-all",
                     isActive
                       ? "border-primary/35 bg-primary/12 text-foreground shadow-[0_0_30px_rgba(0,200,200,0.08)]"
                       : "border-white/8 bg-white/[0.025] text-muted-foreground hover:border-white/14 hover:bg-white/[0.045] hover:text-foreground",
@@ -157,7 +156,7 @@ export function SettingsPanel({ className, surface = "page" }: SettingsPanelProp
                     <Icon className="h-4 w-4" />
                   </span>
                   <span className="min-w-0">
-                    <span className="block font-medium">
+                    <span className="block truncate font-medium">
                       {t(`sections.${section.translationKey}.title`, { defaultValue: section.id })}
                     </span>
                     <span className="block truncate text-xs text-muted-foreground/70">
@@ -362,7 +361,27 @@ export function SettingsPanel({ className, surface = "page" }: SettingsPanelProp
               </div>
             )}
 
-            {(activeSection === "hit" || activeSection === "fps") && (
+            {activeSection === "fps" && (
+              <div className="grid gap-5">
+              <RangeField
+                icon={Gauge}
+                label={t("fields.fpsLimit", { defaultValue: "FPS 上限" })}
+                value={training.fpsLimit}
+                min={30}
+                max={240}
+                step={5}
+                unit=" FPS"
+                onChange={(fpsLimit) => setTraining({ fpsLimit })}
+              />
+              <p className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-muted-foreground">
+                {t("messages.fpsLimitNote", {
+                  defaultValue: "较低且稳定的 FPS 上限可以减少帧时间波动。修改后会立即应用到训练画面。",
+                })}
+              </p>
+              </div>
+            )}
+
+            {activeSection === "hit" && (
               <div className="flex min-h-[280px] items-center justify-center rounded-3xl border border-dashed border-white/15 bg-black/15 p-8 text-center">
               <div>
                 <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-muted-foreground">

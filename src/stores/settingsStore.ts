@@ -22,6 +22,7 @@ export interface TargetSettings {
 
 export interface TrainingSettings {
   durationSeconds: number;
+  fpsLimit: number;
   sensitivityX: number;
   sensitivityY: number;
 }
@@ -62,6 +63,7 @@ export const defaultSettings: PersistedSettings = {
   },
   training: {
     durationSeconds: 60,
+    fpsLimit: 240,
     sensitivityX: 0.8,
     sensitivityY: 0.8,
   },
@@ -144,6 +146,7 @@ function loadSettings(): PersistedSettings {
           15,
           180,
         ),
+        fpsLimit: readNumber(settings.training?.fpsLimit, defaultSettings.training.fpsLimit, 30, 240),
         sensitivityX: readNumber(settings.training?.sensitivityX, defaultSettings.training.sensitivityX, 0.1, 3),
         sensitivityY: readNumber(settings.training?.sensitivityY, defaultSettings.training.sensitivityY, 0.1, 3),
       },

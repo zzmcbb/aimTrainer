@@ -75,6 +75,8 @@ export function useGrid3x3Training() {
   const crosshairSettings = useSettingsStore((state) => state.crosshair);
   const targetSettings = useSettingsStore((state) => state.target);
   const crosshairSettingsRef = useRef(crosshairSettings);
+  const fpsLimitRef = useRef(trainingSettings.fpsLimit);
+  const lastRenderedAtRef = useRef(0);
   const sensitivityRef = useRef({
     x: trainingSettings.sensitivityX,
     y: trainingSettings.sensitivityY,
@@ -160,6 +162,10 @@ export function useGrid3x3Training() {
     gameStateRef.current.timeline = createEmptyTimeline(nextDurationMs);
     setRemainingMs(nextDurationMs);
   }, [trainingSettings.durationSeconds]);
+
+  useEffect(() => {
+    fpsLimitRef.current = trainingSettings.fpsLimit;
+  }, [trainingSettings.fpsLimit]);
 
   useEffect(() => {
     sensitivityRef.current = {
@@ -631,6 +637,15 @@ export function useGrid3x3Training() {
 
     const animate = () => {
       const frameNow = performance.now();
+      const minFrameIntervalMs = 1000 / fpsLimitRef.current;
+      const elapsedSinceRender = frameNow - lastRenderedAtRef.current;
+
+      if (lastRenderedAtRef.current > 0 && elapsedSinceRender < minFrameIntervalMs - 0.5) {
+        animationRef.current = window.requestAnimationFrame(animate);
+        return;
+      }
+
+      lastRenderedAtRef.current = frameNow - (elapsedSinceRender % minFrameIntervalMs);
       const fpsSample = fpsSampleRef.current;
       fpsSample.frames += 1;
 

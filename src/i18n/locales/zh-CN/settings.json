@@ -21,6 +21,7 @@
     "duration": "Grid 3x3 倒计时",
     "dynamicSpreadEnabled": "动态扩散",
     "dynamicSpreadEnabledDescription": "射击时准星短暂扩散后回弹",
+    "fpsLimit": "FPS 上限",
     "outerCrosshairEnabled": "外部准星",
     "outerCrosshairEnabledDescription": "显示准星外部十字线",
     "outerCrosshairOffset": "外部准星偏移",
@@ -31,6 +32,7 @@
   },
   "messages": {
     "durationNote": "默认时长为 60 秒。修改后会在下一次重新开始训练时生效，当前暂停局不会被强制改时长。",
+    "fpsLimitNote": "较低且稳定的 FPS 上限可以减少帧时间波动。修改后会立即应用到训练画面。",
     "placeholder": "这个菜单位置已保留，后续接入具体玩法参数时可以直接扩展。",
     "targetNote": "默认小球颜色已改为当前视觉风格主色，方便和首页/按钮风格保持一致。"
   },
@@ -48,7 +50,7 @@
       "title": "模式倒计时设置"
     },
     "fps": {
-      "description": "预留菜单位置",
+      "description": "限制渲染帧率以提高稳定性",
       "title": "FPS 上限设置"
     },
     "hit": {

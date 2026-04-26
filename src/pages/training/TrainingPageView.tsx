@@ -314,7 +314,7 @@ export function TrainingPageView({ viewModel }: TrainingPageViewProps) {
           >
             <X className="h-4 w-4" />
           </Button>
-          <div className="relative h-full min-h-0 w-full max-w-6xl">
+          <div className="relative h-full min-h-0 w-full max-w-[1400px]">
             <SettingsPanel surface="glass" />
           </div>
         </div>

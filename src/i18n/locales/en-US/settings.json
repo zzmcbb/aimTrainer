@@ -21,6 +21,7 @@
     "duration": "Grid 3x3 Countdown",
     "dynamicSpreadEnabled": "Dynamic Spread",
     "dynamicSpreadEnabledDescription": "Briefly expands the crosshair after shooting",
+    "fpsLimit": "FPS Limit",
     "outerCrosshairEnabled": "Outer Crosshair",
     "outerCrosshairEnabledDescription": "Show the outer crosshair lines",
     "outerCrosshairOffset": "Outer Crosshair Offset",
@@ -31,6 +32,7 @@
   },
   "messages": {
     "durationNote": "The default duration is 60 seconds. Changes take effect the next time training restarts and do not force-change the current paused run.",
+    "fpsLimitNote": "A lower, stable FPS cap can reduce frame-time spikes. Changes apply to the training view immediately.",
     "placeholder": "This menu slot is reserved and can be extended when concrete gameplay options are added.",
     "targetNote": "The default target color now uses the current visual primary color, keeping it aligned with the home page and button style."
   },
@@ -48,7 +50,7 @@
       "title": "Mode Countdown"
     },
     "fps": {
-      "description": "Reserved menu slot",
+      "description": "Cap render FPS for smoother pacing",
       "title": "FPS Limit"
     },
     "hit": {
