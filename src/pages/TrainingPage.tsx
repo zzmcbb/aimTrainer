@@ -38,6 +38,7 @@ interface MutableGameState {
   hits: number;
   misses: number;
   isRunning: boolean;
+  lastTargetAppearedAt: number;
   lastTickAt: number;
   pitch: number;
   reactionSamples: number[];
@@ -85,6 +86,7 @@ export function TrainingPage() {
     hits: 0,
     misses: 0,
     isRunning: false,
+    lastTargetAppearedAt: 0,
     lastTickAt: 0,
     pitch: 0,
     reactionSamples: [],
@@ -196,11 +198,12 @@ export function TrainingPage() {
     return available[Math.floor(Math.random() * available.length)] ?? 4;
   }, []);
 
-  const setTargetToGridIndex = useCallback((target: any, gridIndex: number) => {
+  const setTargetToGridIndex = useCallback((target: any, gridIndex: number, appearedAt = performance.now()) => {
     target.position.copy(gridPositions[gridIndex]);
     target.visible = true;
     target.userData.gridIndex = gridIndex;
-    target.userData.spawnedAt = performance.now();
+    target.userData.spawnedAt = appearedAt;
+    gameStateRef.current.lastTargetAppearedAt = appearedAt;
   }, []);
 
   const spawnInitialTargets = useCallback(() => {
@@ -345,6 +348,7 @@ export function TrainingPage() {
           hits: 0,
           misses: 0,
           isRunning: false,
+          lastTargetAppearedAt: 0,
           lastTickAt: 0,
           pitch: 0,
           reactionSamples: [],
@@ -375,8 +379,11 @@ export function TrainingPage() {
         }
 
         clearCountdownTimer();
+        const startedAt = performance.now();
+
         gameStateRef.current.isRunning = true;
-        gameStateRef.current.lastTickAt = performance.now();
+        gameStateRef.current.lastTickAt = startedAt;
+        gameStateRef.current.lastTargetAppearedAt = startedAt;
         setPhase("running");
       }, 1000);
     },
@@ -660,7 +667,9 @@ export function TrainingPage() {
       bucket.shots += 1;
 
       if (hitTarget) {
-        const reactionMs = performance.now() - hitTarget.userData.spawnedAt;
+        const hitAt = performance.now();
+        const reactionStartedAt = gameState.lastTargetAppearedAt || gameState.startedAt || hitAt;
+        const reactionMs = Math.max(0, hitAt - reactionStartedAt);
 
         gameState.hits += 1;
         gameState.reactionSamples.push(reactionMs);
