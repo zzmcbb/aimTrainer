@@ -19,6 +19,11 @@ const maxPitch = Math.PI / 2;
 const crosshairSpreadMaxOffset = 10;
 const crosshairRecoveryEasing = "cubic-bezier(0.16, 1, 0.3, 1)";
 const overlayActionDelayMs = 450;
+const remainingUiUpdateIntervalMs = 100;
+const logicTickRate = 240;
+const logicStepMs = 1000 / logicTickRate;
+const maxAccumulatedLogicMs = 250;
+const targetFadeInMs = 50;
 
 const gridPositions = Array.from({ length: 9 }, (_, index) => {
   const row = Math.floor(index / 3);
@@ -68,9 +73,10 @@ export function TrainingPage() {
   const { t } = useTranslation("training");
   const mountRef = useRef<HTMLDivElement>(null);
   const targetRefs = useRef<any[]>([]);
-  const targetMaterialRef = useRef<any | null>(null);
+  const targetMaterialRef = useRef<any[]>([]);
   const animationRef = useRef<number | null>(null);
   const crosshairSpreadAnimationRef = useRef<number | null>(null);
+  const logicAccumulatorRef = useRef(0);
   const suppressPointerUnlockUntilRef = useRef(0);
   const trainingSettings = useSettingsStore((state) => state.training);
   const crosshairSettings = useSettingsStore((state) => state.crosshair);
@@ -98,11 +104,14 @@ export function TrainingPage() {
   });
   const countdownTimerRef = useRef<number | null>(null);
   const fpsSampleRef = useRef({ frames: 0, lastSampleAt: performance.now() });
+  const logicFpsSampleRef = useRef({ ticks: 0, lastSampleAt: performance.now() });
+  const remainingUiSampleRef = useRef({ lastUpdatedAt: 0 });
   const [phase, setPhase] = useState<"idle" | "countdown" | "running" | "paused" | "complete">("idle");
   const phaseRef = useRef<typeof phase>("idle");
   const [isPointerLocked, setIsPointerLocked] = useState(false);
   const [countdown, setCountdown] = useState(3);
   const [fps, setFps] = useState(0);
+  const [logicFps, setLogicFps] = useState(0);
   const [remainingMs, setRemainingMs] = useState(defaultDurationMs);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [areOverlayActionsEnabled, setAreOverlayActionsEnabled] = useState(false);
@@ -167,13 +176,15 @@ export function TrainingPage() {
   }, [trainingSettings.sensitivityX, trainingSettings.sensitivityY]);
 
   useEffect(() => {
-    const material = targetMaterialRef.current;
-    if (!material) {
+    const materials = targetMaterialRef.current;
+    if (!materials.length) {
       return;
     }
 
-    material.color.set(targetSettings.color);
-    material.emissive.set(targetSettings.color);
+    materials.forEach((material) => {
+      material.color.set(targetSettings.color);
+      material.emissive.set(targetSettings.color);
+    });
   }, [targetSettings.color]);
 
   const syncStats = useCallback(() => {
@@ -201,6 +212,7 @@ export function TrainingPage() {
   const setTargetToGridIndex = useCallback((target: any, gridIndex: number, appearedAt = performance.now()) => {
     target.position.copy(gridPositions[gridIndex]);
     target.visible = true;
+    target.material.opacity = 0;
     target.userData.gridIndex = gridIndex;
     target.userData.spawnedAt = appearedAt;
     gameStateRef.current.lastTargetAppearedAt = appearedAt;
@@ -338,6 +350,9 @@ export function TrainingPage() {
 
       clearCountdownTimer();
       suppressPointerUnlockUntilRef.current = performance.now() + 250;
+      remainingUiSampleRef.current.lastUpdatedAt = performance.now();
+      logicAccumulatorRef.current = 0;
+      logicFpsSampleRef.current = { ticks: 0, lastSampleAt: performance.now() };
 
       if (reset) {
         const nextDurationMs = trainingSettings.durationSeconds * 1000;
@@ -380,6 +395,17 @@ export function TrainingPage() {
 
         clearCountdownTimer();
         const startedAt = performance.now();
+
+        if (reset) {
+          targetRefs.current.forEach((target) => {
+            if (!target.visible) {
+              return;
+            }
+
+            target.material.opacity = 0;
+            target.userData.spawnedAt = startedAt;
+          });
+        }
 
         gameStateRef.current.isRunning = true;
         gameStateRef.current.lastTickAt = startedAt;
@@ -448,11 +474,6 @@ export function TrainingPage() {
         return;
       }
 
-      if (phaseRef.current === "paused") {
-        resumeTraining();
-        return;
-      }
-
       if (gameStateRef.current.isRunning || phaseRef.current === "countdown") {
         pauseTraining();
 
@@ -477,7 +498,7 @@ export function TrainingPage() {
       window.removeEventListener("keydown", handleKeyDown, { capture: true });
       window.removeEventListener("keyup", preventEscapeDefault, { capture: true });
     };
-  }, [isSettingsOpen, pauseTraining, resumeTraining]);
+  }, [isSettingsOpen, pauseTraining]);
 
   useEffect(() => {
     return () => {
@@ -507,12 +528,18 @@ export function TrainingPage() {
     );
     camera.position.set(0, 0, 0);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      powerPreference: "high-performance",
+    });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(mount.clientWidth, mount.clientHeight);
     renderer.setClearColor(0xb8c0cc, 1);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.domElement.style.display = "block";
+    renderer.domElement.style.touchAction = "none";
     mount.appendChild(renderer.domElement);
 
     const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x7f8ea3, 2.1);
@@ -565,7 +592,7 @@ export function TrainingPage() {
     rightWall.position.set(7.8, 0.62, -8);
     scene.add(rightWall);
 
-    const targetMaterial = new THREE.MeshPhysicalMaterial({
+    const createTargetMaterial = () => new THREE.MeshPhysicalMaterial({
       color: targetSettings.color,
       emissive: targetSettings.color,
       emissiveIntensity: 0.18,
@@ -573,10 +600,12 @@ export function TrainingPage() {
       metalness: 0.18,
       clearcoat: 0.65,
       clearcoatRoughness: 0.22,
+      opacity: 0,
+      transparent: true,
     });
-    targetMaterialRef.current = targetMaterial;
     const targetGeometry = new THREE.SphereGeometry(targetRadius, 48, 32);
     const targets = Array.from({ length: 3 }, () => {
+      const targetMaterial = createTargetMaterial();
       const target = new THREE.Mesh(targetGeometry, targetMaterial);
       target.castShadow = true;
       target.visible = false;
@@ -584,9 +613,28 @@ export function TrainingPage() {
       return target;
     });
     targetRefs.current = targets;
+    targetMaterialRef.current = targets.map((target) => target.material);
 
     const raycaster = new THREE.Raycaster();
     const center = new THREE.Vector2(0, 0);
+
+    const updateGameLogic = (deltaMs: number) => {
+      const gameState = gameStateRef.current;
+      gameState.remainingMs = Math.max(0, gameState.remainingMs - deltaMs);
+      logicFpsSampleRef.current.ticks += 1;
+    };
+
+    const updateTargetFadeIn = (frameNow: number) => {
+      targetRefs.current.forEach((target) => {
+        if (!target.visible) {
+          return;
+        }
+
+        const spawnedAt = target.userData.spawnedAt as number | undefined;
+        const fadeProgress = spawnedAt ? (frameNow - spawnedAt) / targetFadeInMs : 1;
+        target.material.opacity = THREE.MathUtils.clamp(fadeProgress, 0, 1);
+      });
+    };
 
     const animate = () => {
       const frameNow = performance.now();
@@ -599,18 +647,35 @@ export function TrainingPage() {
         fpsSample.lastSampleAt = frameNow;
       }
 
+      const logicFpsSample = logicFpsSampleRef.current;
+      if (frameNow - logicFpsSample.lastSampleAt >= 500) {
+        setLogicFps((logicFpsSample.ticks * 1000) / (frameNow - logicFpsSample.lastSampleAt));
+        logicFpsSample.ticks = 0;
+        logicFpsSample.lastSampleAt = frameNow;
+      }
+
       const gameState = gameStateRef.current;
       if (gameState.isRunning) {
-        const deltaMs = frameNow - gameState.lastTickAt;
+        const deltaMs = Math.min(frameNow - gameState.lastTickAt, maxAccumulatedLogicMs);
         gameState.lastTickAt = frameNow;
-        gameState.remainingMs = Math.max(0, gameState.remainingMs - deltaMs);
-        setRemainingMs(gameState.remainingMs);
+        logicAccumulatorRef.current += deltaMs;
+
+        while (logicAccumulatorRef.current >= logicStepMs && gameState.remainingMs > 0) {
+          updateGameLogic(logicStepMs);
+          logicAccumulatorRef.current -= logicStepMs;
+        }
 
         if (gameState.remainingMs <= 0) {
+          logicAccumulatorRef.current = 0;
+          setRemainingMs(0);
           finishTraining();
+        } else if (frameNow - remainingUiSampleRef.current.lastUpdatedAt >= remainingUiUpdateIntervalMs) {
+          remainingUiSampleRef.current.lastUpdatedAt = frameNow;
+          setRemainingMs(gameState.remainingMs);
         }
       }
 
+      updateTargetFadeIn(frameNow);
       renderer.render(scene, camera);
       animationRef.current = window.requestAnimationFrame(animate);
     };
@@ -715,8 +780,8 @@ export function TrainingPage() {
 
       renderer.dispose();
       targetGeometry.dispose();
-      targetMaterial.dispose();
-      targetMaterialRef.current = null;
+      targetMaterialRef.current.forEach((targetMaterial) => targetMaterial.dispose());
+      targetMaterialRef.current = [];
       roomMaterial.dispose();
       accentMaterial.dispose();
       mount.removeChild(renderer.domElement);
@@ -748,7 +813,7 @@ export function TrainingPage() {
 
   return (
     <main className="relative h-screen overflow-hidden bg-background text-foreground">
-      <div ref={mountRef} className="absolute inset-0" />
+      <div ref={mountRef} className="absolute inset-0 overflow-hidden [contain:strict]" />
 
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,0,0,0.03)_48%,rgba(0,0,0,0.22)_100%)]" />
 
@@ -824,6 +889,9 @@ export function TrainingPage() {
           </Badge>
           <Badge variant="outline" className="border-white/10 bg-black/30 px-4 py-1.5 backdrop-blur-xl">
             FPS {fps.toFixed(2)}
+          </Badge>
+          <Badge variant="outline" className="border-white/10 bg-black/30 px-4 py-1.5 backdrop-blur-xl">
+            Logic {logicFps.toFixed(2)}
           </Badge>
         </div>
 
