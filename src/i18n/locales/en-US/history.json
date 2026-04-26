@@ -5,24 +5,71 @@
   "analytics": {
     "accuracy": "Accuracy Trend",
     "avgReaction": "Avg Reaction",
+    "bestHits": "Best Hits",
     "bestScore": "Best Score",
+    "bestScoreHits": "Best Score / Best Hits",
+    "modeTrend": "Score and accuracy trend for the selected mode.",
+    "modeTrendTitle": "Mode Trend",
     "sessions": "Sessions",
-    "subtitle": "Track consistency, accuracy, and training volume with visual analytics.",
-    "title": "ECharts Analytics",
-    "totalShots": "Total Shots"
+    "subtitle": "Review each mode's long-term trend, recent sessions, and single-session results.",
+    "title": "Training History by Mode",
+    "totalHits": "Total Hits"
+  },
+  "details": {
+    "accuracyTrend": "Accuracy Distribution",
+    "hitTrend": "Hit Distribution",
+    "reactionTrend": "Avg Reaction Distribution",
+    "savedLocally": "Saved locally",
+    "subtitle": "Matches the training completion screen.",
+    "title": "Session Details"
   },
   "empty": {
-    "description": "Once training is connected, this page will read local sessions and generate charts automatically.",
-    "title": "No Real Training Data Yet"
+    "description": "After you complete one Grid 3x3 session, local history will be saved automatically.",
+    "detailDescription": "Complete a session to review hits, accuracy, average reaction, and distribution charts here.",
+    "detailTitle": "No Session Details Yet",
+    "modeDescription": "Complete a session to show this mode's trend chart and summary stats.",
+    "modeTitle": "No Records for This Mode",
+    "startTraining": "Start Training",
+    "title": "No Training Data Yet"
+  },
+  "filters": {
+    "collapse": "Collapse",
+    "endDate": "End Date",
+    "expand": "More Filters",
+    "minimum": "Min",
+    "mode": "Mode",
+    "startDate": "Start Date",
+    "today": "Today"
+  },
+  "modes": {
+    "all": "All",
+    "tabs": "Training mode filter",
+    "unknown": "Unknown Mode"
+  },
+  "modeNames": {
+    "grid-3x3": "Grid 3x3",
+    "micro-adjustment": "Micro Adjustment",
+    "tracking": "Tracking"
+  },
+  "recent": {
+    "subtitle": "Sorted by completion time across modes. Click a row to inspect details.",
+    "title": "Recent Training Records"
+  },
+  "pagination": {
+    "next": "Next",
+    "pageSize": "Per Page",
+    "prev": "Prev",
+    "total": "{{count}} total"
   },
   "records": {
     "accuracy": "Accuracy",
     "date": "Date",
+    "duration": "Duration",
+    "hits": "Hits",
     "mode": "Mode",
-    "reaction": "Reaction",
+    "reaction": "Avg Reaction Time",
     "score": "Score",
-    "shots": "Shots",
-    "title": "Training Records"
+    "shots": "Shots"
   },
   "title": "Training History"
 }

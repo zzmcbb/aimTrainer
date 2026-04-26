@@ -15,6 +15,7 @@ interface ResultTrendChartProps {
   accuracyLabel: string;
   hitsLabel: string;
   averageReactionLabel: string;
+  className?: string;
 }
 
 export function ResultTrendChart({
@@ -25,6 +26,7 @@ export function ResultTrendChart({
   accuracyLabel,
   hitsLabel,
   averageReactionLabel,
+  className = "h-[420px]",
 }: ResultTrendChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstanceRef = useRef<echarts.EChartsType | null>(null);
@@ -38,20 +40,20 @@ export function ResultTrendChart({
       },
       grid: [
         {
-          left: 54,
-          right: 58,
+          left: 18,
+          right: 42,
           top: 38,
           height: "23%",
         },
         {
-          left: 54,
-          right: 58,
+          left: 18,
+          right: 42,
           top: "39%",
           height: "23%",
         },
         {
-          left: 54,
-          right: 58,
+          left: 18,
+          right: 42,
           top: "70%",
           height: "23%",
         },
@@ -239,5 +241,5 @@ export function ResultTrendChart({
     chartInstanceRef.current?.setOption(option, true);
   }, [option]);
 
-  return <div ref={chartRef} className="h-[420px] w-full" />;
+  return <div ref={chartRef} className={`${className} w-full`} />;
 }

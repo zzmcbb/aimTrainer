@@ -23,6 +23,7 @@ export function TrainingPageView({ viewModel }: TrainingPageViewProps) {
     remainingMs,
     stats,
     accuracy,
+    score,
     crosshairSettings,
     displayedCrosshairSize,
     crosshairLineLength,
@@ -189,7 +190,8 @@ export function TrainingPageView({ viewModel }: TrainingPageViewProps) {
                 </div>
               </div>
 
-              <div className="mb-6 grid gap-3 md:grid-cols-3">
+              <div className="mb-6 grid gap-3 md:grid-cols-4">
+                <ResultStat label={t("grid3x3.score", { defaultValue: "得分" })} value={score} />
                 <ResultStat label={t("grid3x3.hits", { defaultValue: "命中" })} value={stats.hits} />
                 <ResultStat label={t("grid3x3.accuracy", { defaultValue: "命中率" })} value={`${accuracy}%`} />
                 <ResultStat

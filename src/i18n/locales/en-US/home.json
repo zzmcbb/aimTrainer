@@ -14,6 +14,13 @@
     "titlePrimary": "Precision aim training",
     "viewHistory": "Training History"
   },
+  "actions": {
+    "backHome": "Back Home"
+  },
+  "modeSelection": {
+    "description": "Choose a training mode and drill a specific aiming skill.",
+    "title": "Choose Training Mode"
+  },
   "modes": {
     "grid": {
       "description": "Fast target switching in a fixed 3x3 layout",

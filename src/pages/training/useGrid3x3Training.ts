@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type SyntheticEvent } from "react";
 import * as THREE from "three";
 import { useTranslation } from "@/i18n";
+import {
+  calculateTrainingScore,
+  createTrainingHistoryRecord,
+  saveTrainingRecord,
+} from "@/pages/history/historyRecords";
 import { useSettingsStore } from "@/stores/settingsStore";
 
 const distance = 12;
@@ -98,6 +103,7 @@ export function useGrid3x3Training() {
     yaw: 0,
   });
   const countdownTimerRef = useRef<number | null>(null);
+  const savedSessionIdRef = useRef<string | null>(null);
   const fpsSampleRef = useRef({ frames: 0, lastSampleAt: performance.now() });
   const logicFpsSampleRef = useRef({ ticks: 0, lastSampleAt: performance.now() });
   const remainingUiSampleRef = useRef({ lastUpdatedAt: 0 });
@@ -246,10 +252,37 @@ export function useGrid3x3Training() {
   );
 
   const finishTraining = useCallback(() => {
-    gameStateRef.current.isRunning = false;
+    const gameState = gameStateRef.current;
+    gameState.isRunning = false;
     setPhase("complete");
     setRemainingMs(0);
     syncStats();
+
+    if (!savedSessionIdRef.current) {
+      const reactionTotal = gameState.reactionSamples.reduce((total, value) => total + value, 0);
+      const averageReactionMs = gameState.reactionSamples.length
+        ? Math.round(reactionTotal / gameState.reactionSamples.length)
+        : 0;
+      const record = createTrainingHistoryRecord({
+        modeId: "grid-3x3",
+        modeName: "Grid 3x3",
+        durationSeconds: Math.round(gameState.durationMs / 1000),
+        hits: gameState.hits,
+        misses: gameState.misses,
+        averageReactionMs,
+        timeline: gameState.timeline.map((bucket, index) => ({
+          second: `${index + 1}s`,
+          accuracy: bucket.shots > 0 ? Math.round((bucket.hits / bucket.shots) * 100) : 0,
+          hits: bucket.hits,
+          averageReaction: bucket.reactionSamples > 0
+            ? Math.round(bucket.reactionTotalMs / bucket.reactionSamples)
+            : 0,
+        })),
+      });
+
+      saveTrainingRecord(record);
+      savedSessionIdRef.current = record.id;
+    }
 
     if (document.pointerLockElement) {
       document.exitPointerLock();
@@ -372,6 +405,7 @@ export function useGrid3x3Training() {
           startedAt: performance.now(),
           yaw: 0,
         };
+        savedSessionIdRef.current = null;
 
         setRemainingMs(nextDurationMs);
         setStats({ hits: 0, misses: 0, averageReactionMs: 0 });
@@ -798,6 +832,12 @@ export function useGrid3x3Training() {
 
   const shots = stats.hits + stats.misses;
   const accuracy = shots > 0 ? Math.round((stats.hits / shots) * 100) : 0;
+  const score = calculateTrainingScore({
+    accuracy,
+    averageReactionMs: stats.averageReactionMs,
+    durationSeconds: Math.round(gameStateRef.current.durationMs / 1000),
+    hits: stats.hits,
+  });
   const displayedCrosshairSize = crosshairSettings.size;
   const crosshairLineLength = displayedCrosshairSize * 0.32;
   const crosshairLineGap = crosshairSettings.outerCrosshairOffset + crosshairSpread;
@@ -830,6 +870,7 @@ export function useGrid3x3Training() {
     remainingMs,
     stats,
     accuracy,
+    score,
     crosshairSettings,
     displayedCrosshairSize,
     crosshairLineLength,

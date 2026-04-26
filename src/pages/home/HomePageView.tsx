@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { GlassCard } from "@/components/home/GlassCard";
 import { ParallaxBackground } from "@/components/home/ParallaxBackground";
-import { TrainingModeCard } from "@/components/home/TrainingModeCard";
 import { LanguageSwitcher } from "@/components/settings/LanguageSwitcher";
 import { cn } from "@/lib/utils";
 import { homePageStyles as styles } from "./homePage.styles";
@@ -15,11 +14,11 @@ interface HomePageViewProps {
 }
 
 export function HomePageView({ viewModel }: HomePageViewProps) {
-  const { t, hoveredCardIndex, modesRef, trainingModes, navigate, scrollToModes, setHoveredCardIndex } = viewModel;
+  const { t } = viewModel;
 
   return (
     <main className={styles.page}>
-      <ParallaxBackground intensityBoost={hoveredCardIndex !== null ? 1 : 0} />
+      <ParallaxBackground />
       <LanguageSwitcher />
 
       <div className={styles.content}>
@@ -60,18 +59,16 @@ export function HomePageView({ viewModel }: HomePageViewProps) {
               </p>
 
               <div className="mb-10 flex flex-col gap-4 sm:flex-row">
-                <Button
-                  size="lg"
-                  onClick={scrollToModes}
-                  className={cn(
-                    "group relative overflow-hidden px-10 py-6 font-semibold shadow-[0_0_30px_rgba(0,200,200,0.3)] transition-all duration-300 hover:shadow-[0_0_40px_rgba(0,200,200,0.4)]",
-                  )}
-                >
-                  <span className="relative z-10 flex items-center gap-2">
-                    {t("hero.chooseMode", { defaultValue: "选择模式" })}
-                    <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                  </span>
-                  <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                <Button asChild size="lg" className={cn(
+                  "group relative overflow-hidden px-10 py-6 font-semibold shadow-[0_0_30px_rgba(0,200,200,0.3)] transition-all duration-300 hover:shadow-[0_0_40px_rgba(0,200,200,0.4)]",
+                )}>
+                  <Link to="/modes">
+                    <span className="relative z-10 flex items-center gap-2">
+                      {t("hero.chooseMode", { defaultValue: "选择模式" })}
+                      <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                    </span>
+                    <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                  </Link>
                 </Button>
 
                 <Button asChild size="lg" variant="outline" className="px-10 py-6">
@@ -105,21 +102,6 @@ export function HomePageView({ viewModel }: HomePageViewProps) {
               </div>
             </div>
           </GlassCard>
-
-          <div ref={modesRef} id="training-modes" className="scroll-mt-12 grid gap-4 md:grid-cols-3">
-            {trainingModes.map((mode, index) => (
-              <TrainingModeCard
-                key={mode.mode}
-                mode={mode.mode}
-                title={t(mode.titleKey, { defaultValue: mode.mode })}
-                description={t(mode.descriptionKey, { defaultValue: mode.mode })}
-                onClick={
-                  mode.mode === "grid" ? () => navigate("/training/grid-3x3") : undefined
-                }
-                onHover={(hovering) => setHoveredCardIndex(hovering ? index : null)}
-              />
-            ))}
-          </div>
 
           <p className="mt-10 text-center text-xs tracking-wide text-muted-foreground/40">
             {t("hero.footer", { defaultValue: "为竞技玩家打造。为精准表现优化。" })}

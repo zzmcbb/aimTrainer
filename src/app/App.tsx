@@ -1,7 +1,10 @@
 import { lazy, Suspense } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 import { HomePage } from "@/pages/home";
 
+const ModeSelectionPage = lazy(() =>
+  import("@/pages/modes").then((module) => ({ default: module.ModeSelectionPage })),
+);
 const HistoryPage = lazy(() =>
   import("@/pages/history").then((module) => ({ default: module.HistoryPage })),
 );
@@ -13,14 +16,19 @@ const SettingsPage = lazy(() =>
 );
 
 export function App() {
+  const location = useLocation();
+
   return (
     <Suspense fallback={null}>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/history" element={<HistoryPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/training/grid-3x3" element={<TrainingPage />} />
-      </Routes>
+      <div key={location.pathname} className="route-transition">
+        <Routes location={location}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/modes" element={<ModeSelectionPage />} />
+          <Route path="/history" element={<HistoryPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/training/grid-3x3" element={<TrainingPage />} />
+        </Routes>
+      </div>
     </Suspense>
   );
 }

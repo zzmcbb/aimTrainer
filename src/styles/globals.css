@@ -59,6 +59,8 @@
 
   html {
     color-scheme: dark;
+    height: 100%;
+    overflow: hidden;
   }
 
   body {
@@ -66,6 +68,13 @@
     font-family:
       Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
       sans-serif;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  #root {
+    height: 100%;
+    overflow: hidden;
   }
 
   button {
@@ -83,5 +92,60 @@
   50% {
     transform: translateY(-20px) translateX(10px);
     opacity: 0.6;
+  }
+}
+
+@keyframes route-fade-in {
+  from {
+    filter: blur(4px);
+    opacity: 0;
+    transform: translateY(12px) scale(0.99);
+  }
+
+  to {
+    filter: blur(0);
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.route-transition {
+  animation: route-fade-in 420ms ease-out both;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.history-table-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.history-table-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 999px;
+}
+
+.history-table-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 200, 200, 0.34);
+  background-clip: content-box;
+  border: 1px solid transparent;
+  border-radius: 999px;
+}
+
+.history-table-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 213, 255, 0.5);
+  background-clip: content-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-transition {
+    animation: none;
   }
 }

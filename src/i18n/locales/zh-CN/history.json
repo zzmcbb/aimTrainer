@@ -5,24 +5,71 @@
   "analytics": {
     "accuracy": "命中率趋势",
     "avgReaction": "平均反应",
-    "bestScore": "最高分",
+    "bestHits": "最高命中",
+    "bestScore": "最高得分",
+    "bestScoreHits": "最高得分 / 最高命中",
+    "modeTrend": "当前模式的得分与命中率趋势",
+    "modeTrendTitle": "模式趋势",
     "sessions": "训练次数",
-    "subtitle": "用可视化数据跟踪稳定性、准确率和训练强度。",
-    "title": "ECharts 数据分析",
-    "totalShots": "总射击数"
+    "subtitle": "查看每个模式的长期趋势、近期训练和单次结算详情。",
+    "title": "按模式查看训练历史",
+    "totalHits": "总命中数"
+  },
+  "details": {
+    "accuracyTrend": "命中率分布",
+    "hitTrend": "命中分布",
+    "reactionTrend": "平均反应分布",
+    "savedLocally": "本地保存",
+    "subtitle": "数据与训练结束页保持一致。",
+    "title": "单次记录详情"
   },
   "empty": {
-    "description": "训练功能接入后，这里会自动读取本地训练记录并生成图表。",
-    "title": "暂无真实训练数据"
+    "description": "完成一次九宫格训练后，系统会自动保存本地历史记录。",
+    "detailDescription": "完成训练后可在这里复盘命中、命中率、平均反应和分布曲线。",
+    "detailTitle": "还没有可查看的详情",
+    "modeDescription": "完成一次训练后，这里会展示该模式的趋势图和统计数据。",
+    "modeTitle": "该模式暂无训练记录",
+    "startTraining": "开始训练",
+    "title": "暂无训练数据"
+  },
+  "filters": {
+    "collapse": "收起",
+    "endDate": "结束日期",
+    "expand": "更多筛选",
+    "minimum": "最低",
+    "mode": "模式",
+    "startDate": "开始日期",
+    "today": "今天"
+  },
+  "modes": {
+    "all": "全部",
+    "tabs": "训练模式筛选",
+    "unknown": "未知模式"
+  },
+  "modeNames": {
+    "grid-3x3": "九宫格",
+    "micro-adjustment": "微调训练",
+    "tracking": "跟枪训练"
+  },
+  "recent": {
+    "subtitle": "跨模式按完成时间排序，点击可查看详情。",
+    "title": "近期训练记录"
+  },
+  "pagination": {
+    "next": "下一页",
+    "pageSize": "每页",
+    "prev": "上一页",
+    "total": "共 {{count}} 条"
   },
   "records": {
     "accuracy": "命中率",
     "date": "日期",
+    "duration": "耗时",
+    "hits": "命中",
     "mode": "模式",
-    "reaction": "反应",
+    "reaction": "平均反应时间",
     "score": "分数",
-    "shots": "射击",
-    "title": "训练记录"
+    "shots": "射击"
   },
   "title": "训练历史"
 }

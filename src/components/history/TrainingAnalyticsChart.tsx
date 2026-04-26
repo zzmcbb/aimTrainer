@@ -12,6 +12,7 @@ interface TrainingAnalyticsChartProps {
   accuracy: number[];
   scores: number[];
   accuracyLabel: string;
+  className?: string;
   scoreLabel: string;
 }
 
@@ -20,6 +21,7 @@ export function TrainingAnalyticsChart({
   accuracy,
   scores,
   accuracyLabel,
+  className = "h-[320px]",
   scoreLabel,
 }: TrainingAnalyticsChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
@@ -34,12 +36,14 @@ export function TrainingAnalyticsChart({
       backgroundColor: "transparent",
       color: ["#00d5ff", "#f5a524"],
       grid: {
-        bottom: 34,
+        bottom: 24,
         left: 42,
         right: 34,
-        top: 42,
+        top: 24,
       },
       legend: {
+        show: false,
+        top: 0,
         right: 16,
         textStyle: {
           color: "rgba(255,255,255,0.62)",
@@ -130,5 +134,5 @@ export function TrainingAnalyticsChart({
     };
   }, [accuracy, accuracyLabel, labels, scoreLabel, scores]);
 
-  return <div ref={chartRef} className="h-[320px] w-full" />;
+  return <div ref={chartRef} className={`${className} w-full`} />;
 }

@@ -14,18 +14,25 @@
     "titlePrimary": "精准瞄准训练",
     "viewHistory": "查看训练历史"
   },
+  "actions": {
+    "backHome": "返回首页"
+  },
+  "modeSelection": {
+    "description": "选择一种训练模式，针对不同瞄准能力进行专项练习。",
+    "title": "选择训练模式"
+  },
   "modes": {
     "grid": {
       "description": "在固定 3x3 布局中快速切换目标",
-      "title": "Grid 3x3"
+      "title": "九宫格"
     },
     "micro": {
       "description": "围绕准星进行小幅精准修正",
-      "title": "Micro Adjustment"
+      "title": "微调训练"
     },
     "tracking": {
       "description": "平滑跟随目标并控制稳定性",
-      "title": "Tracking"
+      "title": "跟枪训练"
     }
   }
 }
