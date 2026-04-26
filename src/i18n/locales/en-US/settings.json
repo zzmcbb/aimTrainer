@@ -25,7 +25,7 @@
     "hitEffectEnabled": "Hit Effects",
     "hitEffectEnabledDescription": "Play a short visual response when targets are hit. Off by default.",
     "hitEffectType": "Effect Style",
-    "hitEffectTypeDescription": "Choose balloon pop, energy burst, explosion impact, or nuclear blast.",
+    "hitEffectTypeDescription": "Choose balloon pop, energy burst, explosion impact, nuclear blast, or blood mist.",
     "outerCrosshairEnabled": "Outer Crosshair",
     "outerCrosshairEnabledDescription": "Show the outer crosshair lines",
     "outerCrosshairOffset": "Outer Crosshair Offset",
@@ -54,6 +54,11 @@
       "description": "Huge flash, shockwaves, dense sparks, and fading screen shake.",
       "icon": "☢️",
       "title": "Nuclear Blast"
+    },
+    "bloodMist": {
+      "description": "Soft mist particles spray outward using the target color.",
+      "icon": "🩸",
+      "title": "Blood Mist"
     }
   },
   "messages": {

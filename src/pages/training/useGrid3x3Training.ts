@@ -25,8 +25,9 @@ const targetFadeInMs = 50;
 const maxActiveHitEffects = 8;
 const nukeEffectCooldownMs = 140;
 const nukeParticleCount = 54;
+const bloodMistParticleCount = 30;
 
-type HitEffectKind = "balloon" | "burst" | "explosion" | "nuke";
+type HitEffectKind = "balloon" | "burst" | "explosion" | "nuke" | "bloodMist";
 
 interface HitEffectParticle {
   direction: any;
@@ -695,15 +696,38 @@ export function useGrid3x3Training() {
     let lastNukeEffectAt = 0;
     let screenShake: ScreenShakeState | null = null;
 
+    const createBloodMistTexture = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 64;
+      canvas.height = 64;
+
+      const context = canvas.getContext("2d");
+      if (context) {
+        const gradient = context.createRadialGradient(32, 32, 0, 32, 32, 32);
+        gradient.addColorStop(0, "rgba(255,255,255,0.46)");
+        gradient.addColorStop(0.34, "rgba(255,255,255,0.2)");
+        gradient.addColorStop(0.7, "rgba(255,255,255,0.05)");
+        gradient.addColorStop(1, "rgba(255,255,255,0)");
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, 64, 64);
+      }
+
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.needsUpdate = true;
+      return texture;
+    };
+
+    const bloodMistTexture = createBloodMistTexture();
+
     const disposeEffectObject = (object: any) => {
       object.traverse((child: any) => {
-        const mesh = child;
-        if (!mesh.isMesh) {
+        const effectObject = child;
+        if (!effectObject.isMesh && !effectObject.isSprite) {
           return;
         }
 
-        mesh.geometry.dispose();
-        const material = mesh.material;
+        effectObject.geometry?.dispose();
+        const material = effectObject.material;
 
         if (Array.isArray(material)) {
           material.forEach((item) => item.dispose());
@@ -747,6 +771,16 @@ export function useGrid3x3Training() {
         opacity,
         transparent: true,
         blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+
+    const createBloodMistMaterial = (color: any, opacity = 0.34) =>
+      new THREE.SpriteMaterial({
+        color,
+        map: bloodMistTexture,
+        opacity,
+        transparent: true,
+        blending: THREE.NormalBlending,
         depthWrite: false,
       });
 
@@ -818,7 +852,16 @@ export function useGrid3x3Training() {
       const particles: HitEffectParticle[] = [];
       const targetColor = new THREE.Color(targetSettingsRef.current.color);
       const accentColor = targetColor.clone().offsetHSL(0.08, 0.2, 0.18);
-      const durationMs = effectType === "nuke" ? 1180 : effectType === "explosion" ? 620 : effectType === "balloon" ? 460 : 520;
+      const durationMs =
+        effectType === "nuke"
+          ? 1180
+          : effectType === "explosion"
+            ? 620
+            : effectType === "bloodMist"
+              ? 680
+              : effectType === "balloon"
+                ? 460
+                : 520;
       let ring: any;
       let blastRings: any[] | undefined;
       let shockLight: any;
@@ -859,7 +902,16 @@ export function useGrid3x3Training() {
         group.add(shockLight);
       }
 
-      const particleCount = effectType === "nuke" ? nukeParticleCount : effectType === "explosion" ? 24 : effectType === "balloon" ? 18 : 20;
+      const particleCount =
+        effectType === "nuke"
+          ? nukeParticleCount
+          : effectType === "bloodMist"
+            ? bloodMistParticleCount
+            : effectType === "explosion"
+              ? 24
+              : effectType === "balloon"
+                ? 18
+                : 20;
 
       for (let index = 0; index < particleCount; index += 1) {
         const color =
@@ -867,7 +919,7 @@ export function useGrid3x3Training() {
             ? [0xffffff, 0xfff1a6, 0xffb347, 0xff6a2a, 0xff2f1f][index % 5]
             : effectType === "explosion"
             ? [0xfff1a6, 0xff9a3d, 0xff4d2e][index % 3]
-            : effectType === "balloon"
+            : effectType === "balloon" || effectType === "bloodMist"
               ? targetColor
               : index % 2 === 0
                 ? targetColor
@@ -881,6 +933,8 @@ export function useGrid3x3Training() {
         const geometry =
           effectType === "balloon"
             ? new THREE.CircleGeometry(THREE.MathUtils.randFloat(0.12, 0.23), 3)
+            : effectType === "bloodMist"
+              ? undefined
             : effectType === "nuke"
               ? index % 4 === 0
                 ? new THREE.BoxGeometry(
@@ -896,18 +950,50 @@ export function useGrid3x3Training() {
                   THREE.MathUtils.randFloat(0.18, 0.34),
                   THREE.MathUtils.randFloat(0.04, 0.08),
                 );
-        const material = createParticleMaterial(color, 0.95);
-        const particle = createHitEffectParticle(
-          geometry,
-          material,
-          effectType === "balloon" ? balloonOrigin : new THREE.Vector3(0, 0, 0),
-          effectType === "nuke" ? 2.55 : effectType === "explosion" ? 1.18 : effectType === "balloon" ? 1.05 : 0.88,
-          effectType === "balloon" ? balloonDirection : undefined,
-        );
+        const particle =
+          effectType === "bloodMist"
+            ? (() => {
+                const material = createBloodMistMaterial(color, THREE.MathUtils.randFloat(0.16, 0.32));
+                const object = new THREE.Sprite(material);
+                const mistOrigin = balloonDirection
+                  .clone()
+                  .multiplyScalar(targetRadius * THREE.MathUtils.randFloat(0.08, 0.38));
+                object.position.copy(mistOrigin);
+
+                return {
+                  direction: balloonDirection,
+                  object,
+                  origin: mistOrigin.clone(),
+                  spin: new THREE.Vector3(
+                    THREE.MathUtils.randFloat(-1.2, 1.2),
+                    THREE.MathUtils.randFloat(-1.2, 1.2),
+                    THREE.MathUtils.randFloat(-1.2, 1.2),
+                  ),
+                  speed: THREE.MathUtils.randFloat(0.72, 1.35),
+                };
+              })()
+            : createHitEffectParticle(
+                geometry,
+                createParticleMaterial(color, 0.95),
+                effectType === "balloon" ? balloonOrigin : new THREE.Vector3(0, 0, 0),
+                effectType === "nuke"
+                  ? 2.55
+                  : effectType === "explosion"
+                    ? 1.18
+                    : effectType === "balloon"
+                      ? 1.05
+                      : 0.88,
+                effectType === "balloon" ? balloonDirection : undefined,
+              );
 
         if (effectType === "nuke") {
           particle.speed *= THREE.MathUtils.randFloat(1.35, 2.15);
           particle.spin.multiplyScalar(1.45);
+        } else if (effectType === "bloodMist") {
+          particle.direction.x *= THREE.MathUtils.randFloat(0.42, 0.78);
+          particle.direction.z *= THREE.MathUtils.randFloat(0.08, 0.24);
+          particle.direction.y += THREE.MathUtils.randFloat(0.08, 0.34);
+          particle.direction.normalize();
         }
 
         particles.push(particle);
@@ -940,7 +1026,9 @@ export function useGrid3x3Training() {
               ? 1 + easeOut * 5.8
               : effect.type === "explosion"
               ? 1 + easeOut * 2.7
-              : 1 + easeOut * 2.45;
+              : effect.type === "burst"
+                ? 1 + easeOut * 0.25
+                : 1 + easeOut * 2.45;
 
           effect.ring.scale.setScalar(ringScale);
           ringMaterial.opacity = Math.max(0, fade * (effect.type === "nuke" ? 1 : 0.78));
@@ -964,12 +1052,18 @@ export function useGrid3x3Training() {
           const gravity =
             effect.type === "nuke"
               ? progress * progress * 0.48
+              : effect.type === "bloodMist"
+                ? progress * progress * 0.18
               : effect.type === "balloon"
                 ? progress * progress * 1.05
                 : progress * progress * 0.25;
 
           particle.object.position.copy(particle.origin).addScaledVector(particle.direction, distance);
           particle.object.position.y -= gravity;
+          if (effect.type === "bloodMist") {
+            particle.object.position.x += Math.sin(progress * Math.PI * 2 + particle.spin.x) * 0.08 * fade;
+            particle.object.position.y += Math.cos(progress * Math.PI * 1.6 + particle.spin.y) * 0.06 * fade;
+          }
           particle.object.rotation.x += particle.spin.x * 0.015;
           particle.object.rotation.y += particle.spin.y * 0.015;
           particle.object.rotation.z += particle.spin.z * 0.015;
@@ -978,9 +1072,16 @@ export function useGrid3x3Training() {
               ? 0.95
               : effect.type === "nuke"
                 ? 0.38 + fade * 1.55
+                : effect.type === "bloodMist"
+                  ? 0.42 + easeOut * 1.82
                 : 0.45 + fade * 0.85,
           );
-          material.opacity = effect.type === "balloon" ? 0.95 : Math.max(0, fade);
+          material.opacity =
+            effect.type === "balloon"
+              ? 0.95
+              : effect.type === "bloodMist"
+                ? Math.max(0, fade * 0.34)
+                : Math.max(0, fade);
         });
 
         if (progress >= 1) {
@@ -1192,6 +1293,7 @@ export function useGrid3x3Training() {
       hitEffects.forEach(removeHitEffect);
       hitEffects.length = 0;
       renderer.domElement.style.transform = "";
+      bloodMistTexture.dispose();
       roomMaterial.dispose();
       accentMaterial.dispose();
       mount.removeChild(renderer.domElement);
