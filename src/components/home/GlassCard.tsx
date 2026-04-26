@@ -57,7 +57,7 @@ export function GlassCard({
       <div className="absolute right-0 top-0 h-6 w-6 rounded-tr-2xl border-r border-t border-primary/20" />
       <div className="absolute bottom-0 left-0 h-6 w-6 rounded-bl-2xl border-b border-l border-primary/10" />
       <div className="absolute bottom-0 right-0 h-6 w-6 rounded-br-2xl border-b border-r border-primary/10" />
-      <div className="relative z-10">{children}</div>
+      <div className="relative z-10 h-full min-h-0">{children}</div>
     </div>
   );
 }
