@@ -23,6 +23,25 @@ const logicStepMs = 1000 / logicTickRate;
 const maxAccumulatedLogicMs = 250;
 const targetFadeInMs = 50;
 
+type HitEffectKind = "balloon" | "burst" | "explosion";
+
+interface HitEffectParticle {
+  direction: any;
+  object: any;
+  origin: any;
+  spin: any;
+  speed: number;
+}
+
+interface HitEffectInstance {
+  durationMs: number;
+  group: any;
+  particles: HitEffectParticle[];
+  ring?: any;
+  startedAt: number;
+  type: HitEffectKind;
+}
+
 const gridPositions = Array.from({ length: 9 }, (_, index) => {
   const row = Math.floor(index / 3);
   const col = index % 3;
@@ -78,8 +97,11 @@ export function useGrid3x3Training() {
   const suppressPointerUnlockUntilRef = useRef(0);
   const trainingSettings = useSettingsStore((state) => state.training);
   const crosshairSettings = useSettingsStore((state) => state.crosshair);
+  const hitSettings = useSettingsStore((state) => state.hit);
   const targetSettings = useSettingsStore((state) => state.target);
   const crosshairSettingsRef = useRef(crosshairSettings);
+  const hitSettingsRef = useRef(hitSettings);
+  const targetSettingsRef = useRef(targetSettings);
   const fpsLimitRef = useRef(trainingSettings.fpsLimit);
   const lastRenderedAtRef = useRef(0);
   const sensitivityRef = useRef({
@@ -158,6 +180,10 @@ export function useGrid3x3Training() {
   }, [crosshairSettings]);
 
   useEffect(() => {
+    hitSettingsRef.current = hitSettings;
+  }, [hitSettings]);
+
+  useEffect(() => {
     if (phaseRef.current !== "idle") {
       return;
     }
@@ -181,6 +207,8 @@ export function useGrid3x3Training() {
   }, [trainingSettings.sensitivityX, trainingSettings.sensitivityY]);
 
   useEffect(() => {
+    targetSettingsRef.current = targetSettings;
+
     const materials = targetMaterialRef.current;
     if (!materials.length) {
       return;
@@ -650,6 +678,187 @@ export function useGrid3x3Training() {
 
     const raycaster = new THREE.Raycaster();
     const center = new THREE.Vector2(0, 0);
+    const hitEffects: HitEffectInstance[] = [];
+
+    const disposeEffectObject = (object: any) => {
+      object.traverse((child: any) => {
+        const mesh = child;
+        if (!mesh.isMesh) {
+          return;
+        }
+
+        mesh.geometry.dispose();
+        const material = mesh.material;
+
+        if (Array.isArray(material)) {
+          material.forEach((item) => item.dispose());
+        } else {
+          material.dispose();
+        }
+      });
+    };
+
+    const removeHitEffect = (effect: HitEffectInstance) => {
+      scene.remove(effect.group);
+      disposeEffectObject(effect.group);
+    };
+
+    const createParticleMaterial = (color: any, opacity = 0.95) =>
+      new THREE.MeshBasicMaterial({
+        color,
+        opacity,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+
+    const createHitEffectParticle = (
+      geometry: any,
+      material: any,
+      position: any,
+      distanceScale: number,
+      directionOverride?: any,
+    ): HitEffectParticle => {
+      const object = new THREE.Mesh(geometry, material);
+      object.position.copy(position);
+      object.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+
+      const direction = directionOverride ?? new THREE.Vector3(
+          (Math.random() - 0.5) * 1.8,
+          (Math.random() - 0.5) * 1.8,
+          Math.random() * 0.55 + 0.15,
+        ).normalize();
+
+      return {
+        direction,
+        object,
+        origin: position.clone(),
+        spin: new THREE.Vector3(
+          (Math.random() - 0.5) * 10,
+          (Math.random() - 0.5) * 10,
+          (Math.random() - 0.5) * 10,
+        ),
+        speed: THREE.MathUtils.randFloat(1.4, 3.4) * distanceScale,
+      };
+    };
+
+    const spawnHitEffect = (position: any) => {
+      const settings = hitSettingsRef.current;
+      if (!settings.enabled) {
+        return;
+      }
+
+      const effectType = settings.type;
+      const group = new THREE.Group();
+      group.position.copy(position);
+      scene.add(group);
+
+      const particles: HitEffectParticle[] = [];
+      const targetColor = new THREE.Color(targetSettingsRef.current.color);
+      const accentColor = targetColor.clone().offsetHSL(0.08, 0.2, 0.18);
+      const durationMs = effectType === "explosion" ? 620 : effectType === "balloon" ? 460 : 520;
+      let ring: any;
+
+      if (effectType === "burst") {
+        const ringMaterial = createParticleMaterial(targetColor, 0.72);
+        ring = new THREE.Mesh(new THREE.TorusGeometry(targetRadius * 0.72, 0.028, 10, 72), ringMaterial);
+        group.add(ring);
+      }
+
+      if (effectType === "explosion") {
+        const coreMaterial = createParticleMaterial(0xffb347, 0.9);
+        ring = new THREE.Mesh(new THREE.SphereGeometry(targetRadius * 0.42, 24, 16), coreMaterial);
+        group.add(ring);
+      }
+
+      const particleCount = effectType === "explosion" ? 24 : effectType === "balloon" ? 18 : 20;
+
+      for (let index = 0; index < particleCount; index += 1) {
+        const color =
+          effectType === "explosion"
+            ? [0xfff1a6, 0xff9a3d, 0xff4d2e][index % 3]
+            : effectType === "balloon"
+              ? targetColor
+              : index % 2 === 0
+                ? targetColor
+                : accentColor;
+        const balloonDirection = new THREE.Vector3(
+          Math.cos((index / particleCount) * Math.PI * 2) * THREE.MathUtils.randFloat(0.65, 1.2),
+          Math.sin((index / particleCount) * Math.PI * 2) * THREE.MathUtils.randFloat(0.65, 1.2),
+          THREE.MathUtils.randFloat(0.08, 0.55),
+        ).normalize();
+        const balloonOrigin = balloonDirection.clone().multiplyScalar(targetRadius * THREE.MathUtils.randFloat(0.36, 0.62));
+        const geometry =
+          effectType === "balloon"
+            ? new THREE.CircleGeometry(THREE.MathUtils.randFloat(0.12, 0.23), 3)
+            : effectType === "explosion"
+              ? new THREE.SphereGeometry(THREE.MathUtils.randFloat(0.045, 0.11), 10, 8)
+              : new THREE.BoxGeometry(
+                  THREE.MathUtils.randFloat(0.05, 0.09),
+                  THREE.MathUtils.randFloat(0.18, 0.34),
+                  THREE.MathUtils.randFloat(0.04, 0.08),
+                );
+        const material = createParticleMaterial(color, 0.95);
+        const particle = createHitEffectParticle(
+          geometry,
+          material,
+          effectType === "balloon" ? balloonOrigin : new THREE.Vector3(0, 0, 0),
+          effectType === "explosion" ? 1.18 : effectType === "balloon" ? 1.05 : 0.88,
+          effectType === "balloon" ? balloonDirection : undefined,
+        );
+
+        particles.push(particle);
+        group.add(particle.object);
+      }
+
+      hitEffects.push({
+        durationMs,
+        group,
+        particles,
+        ring,
+        startedAt: performance.now(),
+        type: effectType,
+      });
+    };
+
+    const updateHitEffects = (frameNow: number) => {
+      for (let index = hitEffects.length - 1; index >= 0; index -= 1) {
+        const effect = hitEffects[index];
+        const progress = THREE.MathUtils.clamp((frameNow - effect.startedAt) / effect.durationMs, 0, 1);
+        const easeOut = 1 - (1 - progress) ** 3;
+        const fade = 1 - progress;
+
+        if (effect.ring) {
+          const ringMaterial = effect.ring.material;
+          const ringScale =
+            effect.type === "explosion"
+              ? 1 + easeOut * 2.7
+              : 1 + easeOut * 2.45;
+
+          effect.ring.scale.setScalar(ringScale);
+          ringMaterial.opacity = Math.max(0, fade * 0.78);
+        }
+
+        effect.particles.forEach((particle) => {
+          const material = particle.object.material;
+          const distance = particle.speed * easeOut;
+          const gravity = effect.type === "balloon" ? progress * progress * 1.05 : progress * progress * 0.25;
+
+          particle.object.position.copy(particle.origin).addScaledVector(particle.direction, distance);
+          particle.object.position.y -= gravity;
+          particle.object.rotation.x += particle.spin.x * 0.015;
+          particle.object.rotation.y += particle.spin.y * 0.015;
+          particle.object.rotation.z += particle.spin.z * 0.015;
+          particle.object.scale.setScalar(effect.type === "balloon" ? 0.95 : 0.45 + fade * 0.85);
+          material.opacity = effect.type === "balloon" ? 0.95 : Math.max(0, fade);
+        });
+
+        if (progress >= 1) {
+          hitEffects.splice(index, 1);
+          removeHitEffect(effect);
+        }
+      }
+    };
 
     const updateGameLogic = (deltaMs: number) => {
       const gameState = gameStateRef.current;
@@ -718,6 +927,7 @@ export function useGrid3x3Training() {
       }
 
       updateTargetFadeIn(frameNow);
+      updateHitEffects(frameNow);
       renderer.render(scene, camera);
       animationRef.current = window.requestAnimationFrame(animate);
     };
@@ -783,6 +993,7 @@ export function useGrid3x3Training() {
         bucket.hits += 1;
         bucket.reactionTotalMs += reactionMs;
         bucket.reactionSamples += 1;
+        spawnHitEffect(hitTarget.position.clone());
         replaceHitTarget(hitTarget);
       } else {
         gameState.misses += 1;
@@ -824,6 +1035,8 @@ export function useGrid3x3Training() {
       targetGeometry.dispose();
       targetMaterialRef.current.forEach((targetMaterial) => targetMaterial.dispose());
       targetMaterialRef.current = [];
+      hitEffects.forEach(removeHitEffect);
+      hitEffects.length = 0;
       roomMaterial.dispose();
       accentMaterial.dispose();
       mount.removeChild(renderer.domElement);

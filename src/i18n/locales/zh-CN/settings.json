@@ -22,6 +22,10 @@
     "dynamicSpreadEnabled": "动态扩散",
     "dynamicSpreadEnabledDescription": "射击时准星短暂扩散后回弹",
     "fpsLimit": "FPS 上限",
+    "hitEffectEnabled": "击中特效",
+    "hitEffectEnabledDescription": "命中小球时播放短暂的视觉反馈，默认关闭。",
+    "hitEffectType": "特效样式",
+    "hitEffectTypeDescription": "可选择气球破裂、能量碎裂或爆炸冲击。",
     "outerCrosshairEnabled": "外部准星",
     "outerCrosshairEnabledDescription": "显示准星外部十字线",
     "outerCrosshairOffset": "外部准星偏移",
@@ -30,9 +34,27 @@
     "spreadRecoverySeconds": "扩散回弹时间",
     "targetColor": "小球颜色"
   },
+  "hitEffects": {
+    "balloon": {
+      "description": "彩色碎片向外弹开，像气球被击破。",
+      "icon": "🎈",
+      "title": "气球破裂"
+    },
+    "burst": {
+      "description": "霓虹碎片和扩散光环，反馈轻快清晰。",
+      "icon": "✨",
+      "title": "能量碎裂"
+    },
+    "explosion": {
+      "description": "暖色爆心和火花冲击，命中感更强。",
+      "icon": "💥",
+      "title": "爆炸"
+    }
+  },
   "messages": {
     "durationNote": "默认时长为 60 秒。修改后会在下一次重新开始训练时生效，当前暂停局不会被强制改时长。",
     "fpsLimitNote": "较低且稳定的 FPS 上限可以减少帧时间波动。修改后会立即应用到训练画面。",
+    "hitEffectNote": "击中特效默认关闭；开启后会在命中位置播放，不影响命中判定和成绩记录。",
     "placeholder": "这个菜单位置已保留，后续接入具体玩法参数时可以直接扩展。",
     "targetNote": "默认小球颜色已改为当前视觉风格主色，方便和首页/按钮风格保持一致。"
   },
@@ -54,7 +76,7 @@
       "title": "FPS 上限设置"
     },
     "hit": {
-      "description": "预留菜单位置",
+      "description": "开启并选择命中反馈",
       "title": "小球击中设置"
     },
     "sensitivity": {

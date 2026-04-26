@@ -20,6 +20,13 @@ export interface TargetSettings {
   color: string;
 }
 
+export type HitEffectType = "balloon" | "burst" | "explosion";
+
+export interface HitEffectSettings {
+  enabled: boolean;
+  type: HitEffectType;
+}
+
 export interface TrainingSettings {
   durationSeconds: number;
   fpsLimit: number;
@@ -29,6 +36,7 @@ export interface TrainingSettings {
 
 interface PersistedSettings {
   crosshair: CrosshairSettings;
+  hit: HitEffectSettings;
   language: LanguagePreference;
   target: TargetSettings;
   training: TrainingSettings;
@@ -37,6 +45,7 @@ interface PersistedSettings {
 interface SettingsState extends PersistedSettings {
   resetAimSettings: () => void;
   setCrosshair: (settings: Partial<CrosshairSettings>) => void;
+  setHit: (settings: Partial<HitEffectSettings>) => void;
   setLanguage: (language: LanguagePreference) => void;
   setTarget: (settings: Partial<TargetSettings>) => void;
   setTraining: (settings: Partial<TrainingSettings>) => void;
@@ -56,6 +65,10 @@ export const defaultSettings: PersistedSettings = {
     spreadRecoverySeconds: 0.8,
     size: 32,
     thickness: 1,
+  },
+  hit: {
+    enabled: false,
+    type: "balloon",
   },
   language: "system",
   target: {
@@ -85,6 +98,10 @@ function readColor(value: unknown, fallback: string) {
 
 function readBoolean(value: unknown, fallback: boolean) {
   return typeof value === "boolean" ? value : fallback;
+}
+
+function readHitEffectType(value: unknown, fallback: HitEffectType): HitEffectType {
+  return value === "balloon" || value === "burst" || value === "explosion" ? value : fallback;
 }
 
 function loadSettings(): PersistedSettings {
@@ -132,6 +149,10 @@ function loadSettings(): PersistedSettings {
         size: readNumber(settings.crosshair?.size, defaultSettings.crosshair.size, 16, 56),
         thickness: readNumber(settings.crosshair?.thickness, defaultSettings.crosshair.thickness, 1, 4),
       },
+      hit: {
+        enabled: readBoolean(settings.hit?.enabled, defaultSettings.hit.enabled),
+        type: readHitEffectType(settings.hit?.type, defaultSettings.hit.type),
+      },
       language: isLanguagePreference(settings.language) ? settings.language : defaultSettings.language,
       target: {
         color:
@@ -175,6 +196,7 @@ function persist(
 ) {
   const nextSettings = {
     crosshair: partial.crosshair ?? get().crosshair,
+    hit: partial.hit ?? get().hit,
     language: partial.language ?? get().language,
     target: partial.target ?? get().target,
     training: partial.training ?? get().training,
@@ -189,12 +211,16 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   resetAimSettings: () => {
     persist(set, get, {
       crosshair: defaultSettings.crosshair,
+      hit: defaultSettings.hit,
       target: defaultSettings.target,
       training: defaultSettings.training,
     });
   },
   setCrosshair: (settings) => {
     persist(set, get, { crosshair: { ...get().crosshair, ...settings } });
+  },
+  setHit: (settings) => {
+    persist(set, get, { hit: { ...get().hit, ...settings } });
   },
   setLanguage: (language) => {
     persist(set, get, { language });

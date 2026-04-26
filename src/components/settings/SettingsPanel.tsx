@@ -15,7 +15,7 @@ import { ColorField, RangeField, ToggleField } from "@/components/settings/Setti
 import { SettingsPreview } from "@/components/settings/SettingsPreview";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/i18n";
-import { defaultSettings, useSettingsStore } from "@/stores/settingsStore";
+import { defaultSettings, type HitEffectType, useSettingsStore } from "@/stores/settingsStore";
 import { cn } from "@/lib/utils";
 
 type SettingsSection = "crosshair" | "target" | "duration" | "sensitivity" | "hit" | "fps";
@@ -55,7 +55,6 @@ const sections: Array<{
     id: "hit",
     icon: MousePointerClick,
     translationKey: "hit",
-    disabled: true,
   },
   {
     id: "fps",
@@ -69,9 +68,11 @@ export function SettingsPanel({ className, surface = "page" }: SettingsPanelProp
   const [activeSection, setActiveSection] = useState<SettingsSection>("crosshair");
   const [isConfirmingReset, setIsConfirmingReset] = useState(false);
   const crosshair = useSettingsStore((state) => state.crosshair);
+  const hit = useSettingsStore((state) => state.hit);
   const target = useSettingsStore((state) => state.target);
   const training = useSettingsStore((state) => state.training);
   const setCrosshair = useSettingsStore((state) => state.setCrosshair);
+  const setHit = useSettingsStore((state) => state.setHit);
   const setTarget = useSettingsStore((state) => state.setTarget);
   const setTraining = useSettingsStore((state) => state.setTraining);
   const resetAimSettings = useSettingsStore((state) => state.resetAimSettings);
@@ -79,7 +80,6 @@ export function SettingsPanel({ className, surface = "page" }: SettingsPanelProp
     () => sections.find((section) => section.id === activeSection) ?? sections[0],
     [activeSection],
   );
-  const ActiveIcon = activeMeta.icon;
 
   return (
     <section
@@ -382,20 +382,68 @@ export function SettingsPanel({ className, surface = "page" }: SettingsPanelProp
             )}
 
             {activeSection === "hit" && (
-              <div className="flex min-h-[280px] items-center justify-center rounded-3xl border border-dashed border-white/15 bg-black/15 p-8 text-center">
-              <div>
-                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-muted-foreground">
-                  <ActiveIcon className="h-6 w-6" />
+              <div className="grid gap-5">
+              <ToggleField
+                label={t("fields.hitEffectEnabled", { defaultValue: "击中特效" })}
+                description={t("fields.hitEffectEnabledDescription", {
+                  defaultValue: "命中小球时播放短暂的视觉反馈，默认关闭。",
+                })}
+                checked={hit.enabled}
+                onChange={(enabled) => setHit({ enabled })}
+              />
+              <div className={cn("rounded-2xl border border-white/10 bg-black/20 p-5", !hit.enabled && "opacity-55")}>
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <div>
+                    <div className="font-medium">
+                      {t("fields.hitEffectType", { defaultValue: "特效样式" })}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {t("fields.hitEffectTypeDescription", {
+                        defaultValue: "可选择气球破裂、能量碎裂或爆炸冲击。",
+                      })}
+                    </div>
+                  </div>
+                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-sm text-foreground">
+                    {t(`hitEffects.${hit.type}.title`, { defaultValue: hit.type })}
+                  </span>
                 </div>
-                <h4 className="text-xl font-semibold">
-                  {t(`sections.${activeMeta.translationKey}.title`, { defaultValue: activeMeta.id })}
-                </h4>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {t("messages.placeholder", {
-                    defaultValue: "这个菜单位置已保留，后续接入具体玩法参数时可以直接扩展。",
+                <div className="grid gap-3 md:grid-cols-3">
+                  {(["balloon", "burst", "explosion"] satisfies HitEffectType[]).map((effectType) => {
+                    const isSelected = hit.type === effectType;
+
+                    return (
+                      <button
+                        key={effectType}
+                        type="button"
+                        disabled={!hit.enabled}
+                        onClick={() => setHit({ type: effectType })}
+                        className={cn(
+                          "rounded-2xl border p-4 text-left transition-all",
+                          isSelected
+                            ? "border-primary/35 bg-primary/12 shadow-[0_0_30px_rgba(0,200,200,0.08)]"
+                            : "border-white/10 bg-white/[0.025] hover:border-white/18 hover:bg-white/[0.045]",
+                          !hit.enabled && "cursor-not-allowed",
+                        )}
+                      >
+                        <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-2xl">
+                          {t(`hitEffects.${effectType}.icon`, { defaultValue: "✨" })}
+                        </span>
+                        <span className="block font-medium">
+                          {t(`hitEffects.${effectType}.title`, { defaultValue: effectType })}
+                        </span>
+                        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                          {t(`hitEffects.${effectType}.description`, { defaultValue: "" })}
+                        </span>
+                      </button>
+                    );
                   })}
-                </p>
+                </div>
               </div>
+              <p className="rounded-2xl border border-primary/15 bg-primary/8 p-4 text-sm text-muted-foreground">
+                {t("messages.hitEffectNote", {
+                  defaultValue: "击中特效默认关闭；开启后会在命中位置播放，不影响命中判定和成绩记录。",
+                })}
+              </p>
               </div>
             )}
           </div>

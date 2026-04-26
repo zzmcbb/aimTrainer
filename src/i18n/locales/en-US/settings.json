@@ -22,6 +22,10 @@
     "dynamicSpreadEnabled": "Dynamic Spread",
     "dynamicSpreadEnabledDescription": "Briefly expands the crosshair after shooting",
     "fpsLimit": "FPS Limit",
+    "hitEffectEnabled": "Hit Effects",
+    "hitEffectEnabledDescription": "Play a short visual response when targets are hit. Off by default.",
+    "hitEffectType": "Effect Style",
+    "hitEffectTypeDescription": "Choose balloon pop, energy burst, or explosion impact.",
     "outerCrosshairEnabled": "Outer Crosshair",
     "outerCrosshairEnabledDescription": "Show the outer crosshair lines",
     "outerCrosshairOffset": "Outer Crosshair Offset",
@@ -30,9 +34,27 @@
     "spreadRecoverySeconds": "Spread Recovery Time",
     "targetColor": "Target Color"
   },
+  "hitEffects": {
+    "balloon": {
+      "description": "Colorful shards pop outward like a balloon burst.",
+      "icon": "🎈",
+      "title": "Balloon Pop"
+    },
+    "burst": {
+      "description": "Neon shards and an expanding ring for crisp feedback.",
+      "icon": "✨",
+      "title": "Energy Burst"
+    },
+    "explosion": {
+      "description": "Warm core flash and sparks for heavier hit impact.",
+      "icon": "💥",
+      "title": "Explosion"
+    }
+  },
   "messages": {
     "durationNote": "The default duration is 60 seconds. Changes take effect the next time training restarts and do not force-change the current paused run.",
     "fpsLimitNote": "A lower, stable FPS cap can reduce frame-time spikes. Changes apply to the training view immediately.",
+    "hitEffectNote": "Hit effects are off by default. When enabled, they play at the hit position without affecting scoring.",
     "placeholder": "This menu slot is reserved and can be extended when concrete gameplay options are added.",
     "targetNote": "The default target color now uses the current visual primary color, keeping it aligned with the home page and button style."
   },
@@ -54,7 +76,7 @@
       "title": "FPS Limit"
     },
     "hit": {
-      "description": "Reserved menu slot",
+      "description": "Enable and choose hit feedback",
       "title": "Target Hit"
     },
     "sensitivity": {
