@@ -19,6 +19,11 @@
     "centerDotSize": "Center Dot Size",
     "defaultValue": "Default {{value}}",
     "duration": "Grid 3x3 Duration",
+    "aimAssistEnabled": "Aim Assist",
+    "aimAssistEnabledDescription": "Automatically pulls the crosshair toward the nearest target center. Off by default.",
+    "aimAssistStrength": "Aim Assist Strength",
+    "customSoundEnabled": "Custom Sound",
+    "customSoundEnabledDescription": "Use a shorter electronic cue instead of the default hit sound. Off by default.",
     "dynamicSpreadEnabled": "Dynamic Spread",
     "dynamicSpreadEnabledDescription": "Briefly expands the crosshair after shooting",
     "fpsLimit": "FPS Limit",
@@ -33,10 +38,14 @@
     "microDuration": "Micro Adjustment Duration",
     "sensitivityX": "X-axis Sensitivity",
     "sensitivityY": "Y-axis Sensitivity",
+    "soundEnabled": "Sound",
+    "soundEnabledDescription": "Play the default crisp click sound when a target is hit. On by default.",
     "startCountdown": "Start Countdown",
     "spreadRecoverySeconds": "Spread Recovery Time",
     "targetColor": "Target Color",
-    "trackingDuration": "Tracking Duration"
+    "trackingDuration": "Tracking Duration",
+    "useHitEffectSound": "Use Hit Effect Sound",
+    "useHitEffectSoundDescription": "When hit effects are enabled, use the selected effect's matching sound. On by default."
   },
   "hitEffects": {
     "balloon": {
@@ -66,10 +75,12 @@
     }
   },
   "messages": {
+    "aimAssistNote": "Strength affects both attraction range and crosshair movement speed. Moving the mouse in the opposite direction can still counteract the pull, while high strength is better for testing aim-assist limits.",
     "durationNote": "Start countdown defaults to 3 seconds and is shared by every mode. Game duration changes take effect the next time training restarts and do not force-change the current paused run.",
     "fpsLimitNote": "A lower, stable FPS cap can reduce frame-time spikes. Changes apply to the training view immediately.",
     "hitEffectNote": "Hit effects are off by default. When enabled, they play at the hit position without affecting scoring.",
     "placeholder": "This menu slot is reserved and can be extended when concrete gameplay options are added.",
+    "soundNote": "The default sound is a short glassy click; custom sound is a lighter electronic cue. With hit effect sound enabled, balloon, explosion, nuke, and other effects use their matching sounds.",
     "targetNote": "The default target color now uses the current visual primary color, keeping it aligned with the home page and button style."
   },
   "page": {
@@ -80,6 +91,10 @@
     "crosshair": {
       "description": "Color, size, thickness, and opacity",
       "title": "Crosshair"
+    },
+    "aimAssist": {
+      "description": "Attraction range and crosshair pull speed",
+      "title": "Aim Assist"
     },
     "duration": {
       "description": "Start countdown and game duration by mode",
@@ -96,6 +111,10 @@
     "sensitivity": {
       "description": "Tune X / Y axes separately",
       "title": "Sensitivity"
+    },
+    "sound": {
+      "description": "Default, custom, and effect-specific sounds",
+      "title": "Sound"
     },
     "target": {
       "description": "Training target color",

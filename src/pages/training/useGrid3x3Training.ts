@@ -26,6 +26,10 @@ const maxActiveHitEffects = 8;
 const nukeEffectCooldownMs = 140;
 const nukeParticleCount = 54;
 const bloodMistParticleCount = 30;
+const aimAssistMinRangeNdc = 0.04;
+const aimAssistMaxRangeNdc = 0.44;
+const aimAssistMinRadiansPerSecond = 0.38;
+const aimAssistMaxRadiansPerSecond = 8.8;
 
 type HitEffectKind = "balloon" | "burst" | "explosion" | "nuke" | "bloodMist";
 
@@ -107,13 +111,18 @@ export function useGrid3x3Training() {
   const crosshairSpreadAnimationRef = useRef<number | null>(null);
   const logicAccumulatorRef = useRef(0);
   const suppressPointerUnlockUntilRef = useRef(0);
+  const aimAssistSettings = useSettingsStore((state) => state.aimAssist);
   const trainingSettings = useSettingsStore((state) => state.training);
   const crosshairSettings = useSettingsStore((state) => state.crosshair);
   const hitSettings = useSettingsStore((state) => state.hit);
+  const soundSettings = useSettingsStore((state) => state.sound);
   const targetSettings = useSettingsStore((state) => state.target);
+  const aimAssistSettingsRef = useRef(aimAssistSettings);
   const crosshairSettingsRef = useRef(crosshairSettings);
   const hitSettingsRef = useRef(hitSettings);
+  const soundSettingsRef = useRef(soundSettings);
   const targetSettingsRef = useRef(targetSettings);
+  const audioContextRef = useRef<AudioContext | null>(null);
   const fpsLimitRef = useRef(trainingSettings.fpsLimit);
   const lastRenderedAtRef = useRef(0);
   const sensitivityRef = useRef({
@@ -178,6 +187,10 @@ export function useGrid3x3Training() {
   }, [phase]);
 
   useEffect(() => {
+    aimAssistSettingsRef.current = aimAssistSettings;
+  }, [aimAssistSettings]);
+
+  useEffect(() => {
     crosshairSettingsRef.current = crosshairSettings;
 
     if (!crosshairSettings.dynamicSpreadEnabled) {
@@ -194,6 +207,10 @@ export function useGrid3x3Training() {
   useEffect(() => {
     hitSettingsRef.current = hitSettings;
   }, [hitSettings]);
+
+  useEffect(() => {
+    soundSettingsRef.current = soundSettings;
+  }, [soundSettings]);
 
   useEffect(() => {
     if (phaseRef.current !== "idle") {
@@ -539,6 +556,150 @@ export function useGrid3x3Training() {
     [areOverlayActionsEnabled],
   );
 
+  const getAudioContext = useCallback(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    if (!audioContextRef.current) {
+      audioContextRef.current = new AudioContext();
+    }
+
+    if (audioContextRef.current.state === "suspended") {
+      audioContextRef.current.resume();
+    }
+
+    return audioContextRef.current;
+  }, []);
+
+  const playTone = useCallback(
+    (
+      context: AudioContext,
+      {
+        at,
+        duration,
+        frequency,
+        gain,
+        type = "sine",
+      }: { at: number; duration: number; frequency: number; gain: number; type?: OscillatorType },
+    ) => {
+      const oscillator = context.createOscillator();
+      const gainNode = context.createGain();
+
+      oscillator.type = type;
+      oscillator.frequency.setValueAtTime(frequency, at);
+      gainNode.gain.setValueAtTime(0.0001, at);
+      gainNode.gain.exponentialRampToValueAtTime(gain, at + 0.008);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, at + duration);
+      oscillator.connect(gainNode);
+      gainNode.connect(context.destination);
+      oscillator.start(at);
+      oscillator.stop(at + duration + 0.02);
+    },
+    [],
+  );
+
+  const playNoise = useCallback(
+    (
+      context: AudioContext,
+      {
+        at,
+        duration,
+        gain,
+        highpass = 360,
+        lowpass = 5200,
+      }: { at: number; duration: number; gain: number; highpass?: number; lowpass?: number },
+    ) => {
+      const sampleCount = Math.max(1, Math.floor(context.sampleRate * duration));
+      const buffer = context.createBuffer(1, sampleCount, context.sampleRate);
+      const data = buffer.getChannelData(0);
+
+      for (let index = 0; index < sampleCount; index += 1) {
+        const fade = 1 - index / sampleCount;
+        data[index] = (Math.random() * 2 - 1) * fade * fade;
+      }
+
+      const source = context.createBufferSource();
+      const highpassFilter = context.createBiquadFilter();
+      const lowpassFilter = context.createBiquadFilter();
+      const gainNode = context.createGain();
+
+      source.buffer = buffer;
+      highpassFilter.type = "highpass";
+      highpassFilter.frequency.value = highpass;
+      lowpassFilter.type = "lowpass";
+      lowpassFilter.frequency.value = lowpass;
+      gainNode.gain.setValueAtTime(gain, at);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, at + duration);
+      source.connect(highpassFilter);
+      highpassFilter.connect(lowpassFilter);
+      lowpassFilter.connect(gainNode);
+      gainNode.connect(context.destination);
+      source.start(at);
+      source.stop(at + duration);
+    },
+    [],
+  );
+
+  const playHitSound = useCallback(
+    (effectType: HitEffectKind) => {
+      const soundSettings = soundSettingsRef.current;
+
+      if (!soundSettings.enabled) {
+        return;
+      }
+
+      const context = getAudioContext();
+      if (!context) {
+        return;
+      }
+
+      const now = context.currentTime;
+      const useEffectSound = hitSettingsRef.current.enabled && soundSettings.useHitEffectSound;
+
+      if (!useEffectSound) {
+        if (soundSettings.customEnabled) {
+          playTone(context, { at: now, duration: 0.06, frequency: 860, gain: 0.04, type: "triangle" });
+          playTone(context, { at: now + 0.045, duration: 0.07, frequency: 1290, gain: 0.026, type: "sine" });
+          return;
+        }
+
+        playTone(context, { at: now, duration: 0.045, frequency: 1320, gain: 0.038, type: "sine" });
+        playTone(context, { at: now + 0.018, duration: 0.07, frequency: 1980, gain: 0.022, type: "triangle" });
+        return;
+      }
+
+      if (effectType === "balloon") {
+        playNoise(context, { at: now, duration: 0.1, gain: 0.05, highpass: 820, lowpass: 7400 });
+        playTone(context, { at: now, duration: 0.055, frequency: 540, gain: 0.035, type: "square" });
+        return;
+      }
+
+      if (effectType === "burst") {
+        playTone(context, { at: now, duration: 0.08, frequency: 980, gain: 0.045, type: "triangle" });
+        playTone(context, { at: now + 0.035, duration: 0.11, frequency: 1540, gain: 0.032, type: "sine" });
+        return;
+      }
+
+      if (effectType === "explosion") {
+        playNoise(context, { at: now, duration: 0.22, gain: 0.07, highpass: 90, lowpass: 2600 });
+        playTone(context, { at: now, duration: 0.16, frequency: 92, gain: 0.05, type: "sawtooth" });
+        return;
+      }
+
+      if (effectType === "nuke") {
+        playNoise(context, { at: now, duration: 0.42, gain: 0.085, highpass: 55, lowpass: 1900 });
+        playTone(context, { at: now, duration: 0.34, frequency: 58, gain: 0.065, type: "sawtooth" });
+        playTone(context, { at: now + 0.055, duration: 0.16, frequency: 118, gain: 0.032, type: "square" });
+        return;
+      }
+
+      playNoise(context, { at: now, duration: 0.18, gain: 0.045, highpass: 240, lowpass: 1800 });
+      playTone(context, { at: now, duration: 0.08, frequency: 210, gain: 0.025, type: "triangle" });
+    },
+    [getAudioContext, playNoise, playTone],
+  );
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.repeat) {
@@ -586,6 +747,9 @@ export function useGrid3x3Training() {
       if (crosshairSpreadAnimationRef.current !== null) {
         window.cancelAnimationFrame(crosshairSpreadAnimationRef.current);
       }
+
+      audioContextRef.current?.close();
+      audioContextRef.current = null;
     };
   }, [clearCountdownTimer]);
 
@@ -698,6 +862,7 @@ export function useGrid3x3Training() {
 
     const raycaster = new THREE.Raycaster();
     const center = new THREE.Vector2(0, 0);
+    const projectedTargetCenter = new THREE.Vector3();
     const hitEffects: HitEffectInstance[] = [];
     let lastNukeEffectAt = 0;
     let screenShake: ScreenShakeState | null = null;
@@ -1126,6 +1291,60 @@ export function useGrid3x3Training() {
       logicFpsSampleRef.current.ticks += 1;
     };
 
+    const updateAimAssist = (deltaMs: number) => {
+      const settings = aimAssistSettingsRef.current;
+      if (!settings.enabled || phaseRef.current !== "running" || !gameStateRef.current.isRunning) {
+        return;
+      }
+
+      const strength = THREE.MathUtils.clamp(settings.strength, 1, 100) / 100;
+      const assistRange = THREE.MathUtils.lerp(aimAssistMinRangeNdc, aimAssistMaxRangeNdc, strength ** 0.78);
+      const maxRadiansPerSecond = THREE.MathUtils.lerp(
+        aimAssistMinRadiansPerSecond,
+        aimAssistMaxRadiansPerSecond,
+        strength ** 1.22,
+      );
+      let nearestTarget: any | null = null;
+      let nearestDistance = Number.POSITIVE_INFINITY;
+
+      targetRefs.current.forEach((target) => {
+        if (!target.visible) {
+          return;
+        }
+
+        projectedTargetCenter.copy(target.position).project(camera);
+
+        if (projectedTargetCenter.z < -1 || projectedTargetCenter.z > 1) {
+          return;
+        }
+
+        const screenDistance = Math.hypot(projectedTargetCenter.x, projectedTargetCenter.y);
+        if (screenDistance <= assistRange && screenDistance < nearestDistance) {
+          nearestDistance = screenDistance;
+          nearestTarget = target;
+        }
+      });
+
+      if (!nearestTarget) {
+        return;
+      }
+
+      const targetPosition = nearestTarget.position;
+      const desiredYaw = -Math.atan2(targetPosition.x, -targetPosition.z);
+      const flatDistance = Math.hypot(targetPosition.x, targetPosition.z);
+      const desiredPitch = Math.atan2(targetPosition.y, flatDistance);
+      const gameState = gameStateRef.current;
+      const falloff = Math.max(0, 1 - nearestDistance / assistRange);
+      const assistFactor = 0.25 + falloff ** 0.62 * 0.75;
+      const maxStep = maxRadiansPerSecond * (deltaMs / 1000) * assistFactor;
+      const yawDelta = THREE.MathUtils.clamp(desiredYaw - gameState.yaw, -maxStep, maxStep);
+      const pitchDelta = THREE.MathUtils.clamp(desiredPitch - gameState.pitch, -maxStep, maxStep);
+
+      gameState.yaw = THREE.MathUtils.clamp(gameState.yaw + yawDelta, -maxYaw, maxYaw);
+      gameState.pitch = THREE.MathUtils.clamp(gameState.pitch + pitchDelta, -maxPitch, maxPitch);
+      camera.rotation.set(gameState.pitch, gameState.yaw, 0, "YXZ");
+    };
+
     const updateTargetFadeIn = (frameNow: number) => {
       targetRefs.current.forEach((target) => {
         if (!target.visible) {
@@ -1166,6 +1385,10 @@ export function useGrid3x3Training() {
       }
 
       const gameState = gameStateRef.current;
+      const renderDeltaMs =
+        gameState.lastTickAt > 0
+          ? Math.min(Math.max(frameNow - gameState.lastTickAt, 0), maxAccumulatedLogicMs)
+          : logicStepMs;
       if (gameState.isRunning) {
         const deltaMs = Math.min(frameNow - gameState.lastTickAt, maxAccumulatedLogicMs);
         gameState.lastTickAt = frameNow;
@@ -1186,6 +1409,7 @@ export function useGrid3x3Training() {
         }
       }
 
+      updateAimAssist(renderDeltaMs);
       updateTargetFadeIn(frameNow);
       updateHitEffects(frameNow);
       updateScreenShake(frameNow);
@@ -1254,6 +1478,7 @@ export function useGrid3x3Training() {
         bucket.hits += 1;
         bucket.reactionTotalMs += reactionMs;
         bucket.reactionSamples += 1;
+        playHitSound(hitSettingsRef.current.type);
         spawnHitEffect(hitTarget.position.clone());
         replaceHitTarget(hitTarget);
       } else {
@@ -1304,7 +1529,7 @@ export function useGrid3x3Training() {
       accentMaterial.dispose();
       mount.removeChild(renderer.domElement);
     };
-  }, [finishTraining, pauseTraining, playCrosshairSpread, replaceHitTarget, syncStats]);
+  }, [finishTraining, pauseTraining, playCrosshairSpread, playHitSound, replaceHitTarget, syncStats]);
 
   const shots = stats.hits + stats.misses;
   const accuracy = shots > 0 ? Math.round((stats.hits / shots) * 100) : 0;

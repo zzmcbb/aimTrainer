@@ -20,11 +20,22 @@ export interface TargetSettings {
   color: string;
 }
 
+export interface AimAssistSettings {
+  enabled: boolean;
+  strength: number;
+}
+
 export type HitEffectType = "balloon" | "burst" | "explosion" | "nuke" | "bloodMist";
 
 export interface HitEffectSettings {
   enabled: boolean;
   type: HitEffectType;
+}
+
+export interface SoundSettings {
+  customEnabled: boolean;
+  enabled: boolean;
+  useHitEffectSound: boolean;
 }
 
 export interface TrainingSettings {
@@ -38,18 +49,22 @@ export interface TrainingSettings {
 }
 
 interface PersistedSettings {
+  aimAssist: AimAssistSettings;
   crosshair: CrosshairSettings;
   hit: HitEffectSettings;
   language: LanguagePreference;
+  sound: SoundSettings;
   target: TargetSettings;
   training: TrainingSettings;
 }
 
 interface SettingsState extends PersistedSettings {
   resetAimSettings: () => void;
+  setAimAssist: (settings: Partial<AimAssistSettings>) => void;
   setCrosshair: (settings: Partial<CrosshairSettings>) => void;
   setHit: (settings: Partial<HitEffectSettings>) => void;
   setLanguage: (language: LanguagePreference) => void;
+  setSound: (settings: Partial<SoundSettings>) => void;
   setTarget: (settings: Partial<TargetSettings>) => void;
   setTraining: (settings: Partial<TrainingSettings>) => void;
 }
@@ -57,6 +72,10 @@ interface SettingsState extends PersistedSettings {
 const storageKey = "aim-trainer-settings";
 
 export const defaultSettings: PersistedSettings = {
+  aimAssist: {
+    enabled: false,
+    strength: 35,
+  },
   crosshair: {
     centerDotEnabled: true,
     centerDotSize: 6,
@@ -74,6 +93,11 @@ export const defaultSettings: PersistedSettings = {
     type: "balloon",
   },
   language: "system",
+  sound: {
+    customEnabled: false,
+    enabled: true,
+    useHitEffectSound: true,
+  },
   target: {
     color: "#00FFEE",
   },
@@ -126,6 +150,10 @@ function loadSettings(): PersistedSettings {
     const settings = JSON.parse(value) as Partial<PersistedSettings>;
 
     return {
+      aimAssist: {
+        enabled: readBoolean(settings.aimAssist?.enabled, defaultSettings.aimAssist.enabled),
+        strength: readNumber(settings.aimAssist?.strength, defaultSettings.aimAssist.strength, 1, 100),
+      },
       crosshair: {
         centerDotEnabled: readBoolean(
           settings.crosshair?.centerDotEnabled,
@@ -162,6 +190,11 @@ function loadSettings(): PersistedSettings {
         type: readHitEffectType(settings.hit?.type, defaultSettings.hit.type),
       },
       language: isLanguagePreference(settings.language) ? settings.language : defaultSettings.language,
+      sound: {
+        customEnabled: readBoolean(settings.sound?.customEnabled, defaultSettings.sound.customEnabled),
+        enabled: readBoolean(settings.sound?.enabled, defaultSettings.sound.enabled),
+        useHitEffectSound: readBoolean(settings.sound?.useHitEffectSound, defaultSettings.sound.useHitEffectSound),
+      },
       target: {
         color:
           settings.target?.color?.toLowerCase() === "#00c8c8"
@@ -221,9 +254,11 @@ function persist(
   partial: Partial<PersistedSettings>,
 ) {
   const nextSettings = {
+    aimAssist: partial.aimAssist ?? get().aimAssist,
     crosshair: partial.crosshair ?? get().crosshair,
     hit: partial.hit ?? get().hit,
     language: partial.language ?? get().language,
+    sound: partial.sound ?? get().sound,
     target: partial.target ?? get().target,
     training: partial.training ?? get().training,
   };
@@ -236,11 +271,16 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   ...loadSettings(),
   resetAimSettings: () => {
     persist(set, get, {
+      aimAssist: defaultSettings.aimAssist,
       crosshair: defaultSettings.crosshair,
       hit: defaultSettings.hit,
+      sound: defaultSettings.sound,
       target: defaultSettings.target,
       training: defaultSettings.training,
     });
+  },
+  setAimAssist: (settings) => {
+    persist(set, get, { aimAssist: { ...get().aimAssist, ...settings } });
   },
   setCrosshair: (settings) => {
     persist(set, get, { crosshair: { ...get().crosshair, ...settings } });
@@ -250,6 +290,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   },
   setLanguage: (language) => {
     persist(set, get, { language });
+  },
+  setSound: (settings) => {
+    persist(set, get, { sound: { ...get().sound, ...settings } });
   },
   setTarget: (settings) => {
     persist(set, get, { target: { ...get().target, ...settings } });

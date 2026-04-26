@@ -19,6 +19,11 @@
     "centerDotSize": "中心点大小",
     "defaultValue": "默认值 {{value}}",
     "duration": "九宫格游戏时长",
+    "aimAssistEnabled": "辅助瞄准",
+    "aimAssistEnabledDescription": "自动将准星拉向离鼠标最近的小球中心，默认关闭。",
+    "aimAssistStrength": "辅助瞄准强度",
+    "customSoundEnabled": "自定义音效",
+    "customSoundEnabledDescription": "使用更短促的电子音替代默认命中音效，默认关闭。",
     "dynamicSpreadEnabled": "动态扩散",
     "dynamicSpreadEnabledDescription": "射击时准星短暂扩散后回弹",
     "fpsLimit": "FPS 上限",
@@ -33,10 +38,14 @@
     "microDuration": "微调训练游戏时长",
     "sensitivityX": "X 轴灵敏度",
     "sensitivityY": "Y 轴灵敏度",
+    "soundEnabled": "音效",
+    "soundEnabledDescription": "命中小球时播放默认的清脆点击音效，默认开启。",
     "startCountdown": "开始倒计时",
     "spreadRecoverySeconds": "扩散回弹时间",
     "targetColor": "小球颜色",
-    "trackingDuration": "跟枪训练游戏时长"
+    "trackingDuration": "跟枪训练游戏时长",
+    "useHitEffectSound": "使用击中特效音效",
+    "useHitEffectSoundDescription": "开启击中特效时，使用所选特效对应的音效，默认开启。"
   },
   "hitEffects": {
     "balloon": {
@@ -66,10 +75,12 @@
     }
   },
   "messages": {
+    "aimAssistNote": "强度同时影响吸附范围和准星移动速度。反向移动鼠标仍可抵消吸附，高强度更适合测试辅助瞄准边界。",
     "durationNote": "开始倒计时默认 3 秒，所有模式统一使用。游戏时长修改后会在下一次重新开始训练时生效，当前暂停局不会被强制改时长。",
     "fpsLimitNote": "较低且稳定的 FPS 上限可以减少帧时间波动。修改后会立即应用到训练画面。",
     "hitEffectNote": "击中特效默认关闭；开启后会在命中位置播放，不影响命中判定和成绩记录。",
     "placeholder": "这个菜单位置已保留，后续接入具体玩法参数时可以直接扩展。",
+    "soundNote": "默认音效为短促玻璃点击；自定义音效为更轻的电子提示音。开启击中特效音效后，气球、爆炸、核弹等特效会使用各自的声音。",
     "targetNote": "默认小球颜色已改为当前视觉风格主色，方便和首页/按钮风格保持一致。"
   },
   "page": {
@@ -80,6 +91,10 @@
     "crosshair": {
       "description": "颜色、大小、粗细和透明度",
       "title": "准星设置"
+    },
+    "aimAssist": {
+      "description": "吸附范围和准星拉动速度",
+      "title": "辅助瞄准"
     },
     "duration": {
       "description": "开始倒计时与各模式游戏时长",
@@ -96,6 +111,10 @@
     "sensitivity": {
       "description": "分别调整 X / Y 轴",
       "title": "灵敏度设置"
+    },
+    "sound": {
+      "description": "默认音效、自定义音效和特效音效",
+      "title": "音效设置"
     },
     "target": {
       "description": "训练目标颜色",

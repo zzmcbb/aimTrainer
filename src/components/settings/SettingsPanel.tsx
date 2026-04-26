@@ -3,11 +3,13 @@ import {
   Clock3,
   Crosshair,
   Gauge,
+  Magnet,
   MousePointerClick,
   Palette,
   RotateCcw,
   SlidersHorizontal,
   TimerReset,
+  Volume2,
   Zap,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +20,7 @@ import { useTranslation } from "@/i18n";
 import { defaultSettings, type HitEffectType, useSettingsStore } from "@/stores/settingsStore";
 import { cn } from "@/lib/utils";
 
-type SettingsSection = "crosshair" | "target" | "duration" | "sensitivity" | "hit" | "fps";
+type SettingsSection = "crosshair" | "aimAssist" | "target" | "duration" | "sensitivity" | "hit" | "sound" | "fps";
 
 interface SettingsPanelProps {
   className?: string;
@@ -42,6 +44,11 @@ const sections: Array<{
     translationKey: "target",
   },
   {
+    id: "aimAssist",
+    icon: Magnet,
+    translationKey: "aimAssist",
+  },
+  {
     id: "duration",
     icon: Clock3,
     translationKey: "duration",
@@ -57,6 +64,11 @@ const sections: Array<{
     translationKey: "hit",
   },
   {
+    id: "sound",
+    icon: Volume2,
+    translationKey: "sound",
+  },
+  {
     id: "fps",
     icon: Gauge,
     translationKey: "fps",
@@ -67,12 +79,16 @@ export function SettingsPanel({ className, surface = "page" }: SettingsPanelProp
   const { t } = useTranslation("settings");
   const [activeSection, setActiveSection] = useState<SettingsSection>("crosshair");
   const [isConfirmingReset, setIsConfirmingReset] = useState(false);
+  const aimAssist = useSettingsStore((state) => state.aimAssist);
   const crosshair = useSettingsStore((state) => state.crosshair);
   const hit = useSettingsStore((state) => state.hit);
+  const sound = useSettingsStore((state) => state.sound);
   const target = useSettingsStore((state) => state.target);
   const training = useSettingsStore((state) => state.training);
+  const setAimAssist = useSettingsStore((state) => state.setAimAssist);
   const setCrosshair = useSettingsStore((state) => state.setCrosshair);
   const setHit = useSettingsStore((state) => state.setHit);
+  const setSound = useSettingsStore((state) => state.setSound);
   const setTarget = useSettingsStore((state) => state.setTarget);
   const setTraining = useSettingsStore((state) => state.setTraining);
   const resetAimSettings = useSettingsStore((state) => state.resetAimSettings);
@@ -316,6 +332,36 @@ export function SettingsPanel({ className, surface = "page" }: SettingsPanelProp
               </div>
             )}
 
+            {activeSection === "aimAssist" && (
+              <div className="grid gap-5">
+              <ToggleField
+                label={t("fields.aimAssistEnabled", { defaultValue: "辅助瞄准" })}
+                description={t("fields.aimAssistEnabledDescription", {
+                  defaultValue: "自动将准星拉向离鼠标最近的小球中心，默认关闭。",
+                })}
+                checked={aimAssist.enabled}
+                onChange={(enabled) => setAimAssist({ enabled })}
+              />
+              <RangeField
+                icon={Magnet}
+                label={t("fields.aimAssistStrength", { defaultValue: "辅助瞄准强度" })}
+                value={aimAssist.strength}
+                min={1}
+                max={100}
+                step={1}
+                unit=""
+                disabled={!aimAssist.enabled}
+                onChange={(strength) => setAimAssist({ strength })}
+              />
+              <p className="rounded-2xl border border-primary/15 bg-primary/8 p-4 text-sm text-muted-foreground">
+                {t("messages.aimAssistNote", {
+                  defaultValue:
+                    "强度同时影响吸附范围和准星移动速度。反向移动鼠标仍可抵消吸附，高强度更适合测试辅助瞄准边界。",
+                })}
+              </p>
+              </div>
+            )}
+
             {activeSection === "duration" && (
               <div className="grid gap-5">
               <RangeField
@@ -406,6 +452,43 @@ export function SettingsPanel({ className, surface = "page" }: SettingsPanelProp
               <p className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-muted-foreground">
                 {t("messages.fpsLimitNote", {
                   defaultValue: "较低且稳定的 FPS 上限可以减少帧时间波动。修改后会立即应用到训练画面。",
+                })}
+              </p>
+              </div>
+            )}
+
+            {activeSection === "sound" && (
+              <div className="grid gap-5">
+              <ToggleField
+                label={t("fields.soundEnabled", { defaultValue: "音效" })}
+                description={t("fields.soundEnabledDescription", {
+                  defaultValue: "命中小球时播放默认的清脆点击音效，默认开启。",
+                })}
+                checked={sound.enabled}
+                onChange={(enabled) => setSound({ enabled })}
+              />
+              <ToggleField
+                label={t("fields.customSoundEnabled", { defaultValue: "自定义音效" })}
+                description={t("fields.customSoundEnabledDescription", {
+                  defaultValue: "使用更短促的电子音替代默认命中音效，默认关闭。",
+                })}
+                checked={sound.customEnabled}
+                disabled={!sound.enabled}
+                onChange={(customEnabled) => setSound({ customEnabled })}
+              />
+              <ToggleField
+                label={t("fields.useHitEffectSound", { defaultValue: "使用击中特效音效" })}
+                description={t("fields.useHitEffectSoundDescription", {
+                  defaultValue: "开启击中特效时，使用所选特效对应的音效，默认开启。",
+                })}
+                checked={sound.useHitEffectSound}
+                disabled={!sound.enabled}
+                onChange={(useHitEffectSound) => setSound({ useHitEffectSound })}
+              />
+              <p className="rounded-2xl border border-primary/15 bg-primary/8 p-4 text-sm text-muted-foreground">
+                {t("messages.soundNote", {
+                  defaultValue:
+                    "默认音效为短促玻璃点击；自定义音效为更轻的电子提示音。开启击中特效音效后，气球、爆炸、核弹等特效会使用各自的声音。",
                 })}
               </p>
               </div>
