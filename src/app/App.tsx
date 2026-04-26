@@ -8,6 +8,9 @@ const HistoryPage = lazy(() =>
 const TrainingPage = lazy(() =>
   import("@/pages/TrainingPage").then((module) => ({ default: module.TrainingPage })),
 );
+const SettingsPage = lazy(() =>
+  import("@/pages/SettingsPage").then((module) => ({ default: module.SettingsPage })),
+);
 
 export function App() {
   return (
@@ -15,6 +18,7 @@ export function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/history" element={<HistoryPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
         <Route path="/training/grid-3x3" element={<TrainingPage />} />
       </Routes>
     </Suspense>

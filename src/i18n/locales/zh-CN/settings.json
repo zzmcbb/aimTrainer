@@ -1,0 +1,71 @@
+{
+  "actions": {
+    "backHome": "返回首页",
+    "close": "关闭设置",
+    "confirmReset": "确认重置",
+    "reset": "恢复默认设置"
+  },
+  "badges": {
+    "comingSoon": "即将推出",
+    "settings": "Settings"
+  },
+  "fields": {
+    "crosshairColor": "准星颜色",
+    "crosshairOpacity": "准星透明度",
+    "crosshairSize": "准星大小",
+    "crosshairThickness": "准星粗细",
+    "centerDotEnabled": "中心点",
+    "centerDotEnabledDescription": "显示准星中心点",
+    "centerDotSize": "中心点大小",
+    "defaultValue": "默认值 {{value}}",
+    "duration": "Grid 3x3 倒计时",
+    "dynamicSpreadEnabled": "动态扩散",
+    "dynamicSpreadEnabledDescription": "射击时准星短暂扩散后回弹",
+    "outerCrosshairEnabled": "外部准星",
+    "outerCrosshairEnabledDescription": "显示准星外部十字线",
+    "outerCrosshairOffset": "外部准星偏移",
+    "sensitivityX": "X 轴灵敏度",
+    "sensitivityY": "Y 轴灵敏度",
+    "spreadRecoverySeconds": "扩散回弹时间",
+    "targetColor": "小球颜色"
+  },
+  "messages": {
+    "durationNote": "默认时长为 60 秒。修改后会在下一次重新开始训练时生效，当前暂停局不会被强制改时长。",
+    "placeholder": "这个菜单位置已保留，后续接入具体玩法参数时可以直接扩展。",
+    "targetNote": "默认小球颜色已改为当前视觉风格主色，方便和首页/按钮风格保持一致。"
+  },
+  "page": {
+    "brand": "Sightline",
+    "title": "设置"
+  },
+  "sections": {
+    "crosshair": {
+      "description": "颜色、大小、粗细和透明度",
+      "title": "准星设置"
+    },
+    "duration": {
+      "description": "每局训练时长",
+      "title": "模式倒计时设置"
+    },
+    "fps": {
+      "description": "预留菜单位置",
+      "title": "FPS 上限设置"
+    },
+    "hit": {
+      "description": "预留菜单位置",
+      "title": "小球击中设置"
+    },
+    "sensitivity": {
+      "description": "分别调整 X / Y 轴",
+      "title": "灵敏度设置"
+    },
+    "target": {
+      "description": "训练目标颜色",
+      "title": "小球颜色设置"
+    }
+  },
+  "title": "训练设置",
+  "units": {
+    "seconds": "秒"
+  }
+}

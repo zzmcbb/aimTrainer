@@ -1,21 +1,24 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Crosshair, MousePointer2, RotateCcw, Settings, Timer, Trophy } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type SyntheticEvent } from "react";
+import { ArrowLeft, Crosshair, MousePointer2, RotateCcw, Settings, Timer, Trophy, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import * as THREE from "three";
+import { SettingsPanel } from "@/components/settings/SettingsPanel";
 import { ResultTrendChart } from "@/components/training/ResultTrendChart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/i18n";
 import { cn } from "@/lib/utils";
+import { useSettingsStore } from "@/stores/settingsStore";
 
-const durationMs = 60_000;
 const distance = 12;
 const spacing = 2.15;
 const targetRadius = 0.88;
 const baseRadiansPerPixel = 0.002;
-const sensitivity = 0.8;
 const maxYaw = Math.PI / 2;
 const maxPitch = Math.PI / 2;
+const crosshairSpreadMaxOffset = 10;
+const crosshairRecoveryEasing = "cubic-bezier(0.16, 1, 0.3, 1)";
+const overlayActionDelayMs = 450;
 
 const gridPositions = Array.from({ length: 9 }, (_, index) => {
   const row = Math.floor(index / 3);
@@ -40,6 +43,7 @@ interface MutableGameState {
   reactionSamples: number[];
   remainingMs: number;
   timeline: TimelineBucket[];
+  durationMs: number;
   startedAt: number;
   yaw: number;
 }
@@ -51,7 +55,7 @@ interface TimelineBucket {
   reactionSamples: number;
 }
 
-const createEmptyTimeline = () =>
+const createEmptyTimeline = (durationMs: number) =>
   Array.from({ length: Math.ceil(durationMs / 1000) }, () => ({
     hits: 0,
     shots: 0,
@@ -63,7 +67,19 @@ export function TrainingPage() {
   const { t } = useTranslation("training");
   const mountRef = useRef<HTMLDivElement>(null);
   const targetRefs = useRef<any[]>([]);
+  const targetMaterialRef = useRef<any | null>(null);
   const animationRef = useRef<number | null>(null);
+  const crosshairSpreadAnimationRef = useRef<number | null>(null);
+  const suppressPointerUnlockUntilRef = useRef(0);
+  const trainingSettings = useSettingsStore((state) => state.training);
+  const crosshairSettings = useSettingsStore((state) => state.crosshair);
+  const targetSettings = useSettingsStore((state) => state.target);
+  const crosshairSettingsRef = useRef(crosshairSettings);
+  const sensitivityRef = useRef({
+    x: trainingSettings.sensitivityX,
+    y: trainingSettings.sensitivityY,
+  });
+  const defaultDurationMs = trainingSettings.durationSeconds * 1000;
   const gameStateRef = useRef<MutableGameState>({
     activeTargetIndices: [],
     hits: 0,
@@ -72,8 +88,9 @@ export function TrainingPage() {
     lastTickAt: 0,
     pitch: 0,
     reactionSamples: [],
-    remainingMs: durationMs,
-    timeline: createEmptyTimeline(),
+    remainingMs: defaultDurationMs,
+    timeline: createEmptyTimeline(defaultDurationMs),
+    durationMs: defaultDurationMs,
     startedAt: 0,
     yaw: 0,
   });
@@ -84,7 +101,11 @@ export function TrainingPage() {
   const [isPointerLocked, setIsPointerLocked] = useState(false);
   const [countdown, setCountdown] = useState(3);
   const [fps, setFps] = useState(0);
-  const [remainingMs, setRemainingMs] = useState(durationMs);
+  const [remainingMs, setRemainingMs] = useState(defaultDurationMs);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [areOverlayActionsEnabled, setAreOverlayActionsEnabled] = useState(false);
+  const [crosshairSpread, setCrosshairSpread] = useState(0);
+  const [isCrosshairRecovering, setIsCrosshairRecovering] = useState(false);
   const [stats, setStats] = useState<GridStats>({
     hits: 0,
     misses: 0,
@@ -94,6 +115,64 @@ export function TrainingPage() {
   useEffect(() => {
     phaseRef.current = phase;
   }, [phase]);
+
+  useEffect(() => {
+    if (phase !== "paused" && phase !== "complete") {
+      setAreOverlayActionsEnabled(false);
+      return;
+    }
+
+    setAreOverlayActionsEnabled(false);
+
+    const timerId = window.setTimeout(() => {
+      setAreOverlayActionsEnabled(true);
+    }, overlayActionDelayMs);
+
+    return () => window.clearTimeout(timerId);
+  }, [phase]);
+
+  useEffect(() => {
+    crosshairSettingsRef.current = crosshairSettings;
+
+    if (!crosshairSettings.dynamicSpreadEnabled) {
+      if (crosshairSpreadAnimationRef.current !== null) {
+        window.cancelAnimationFrame(crosshairSpreadAnimationRef.current);
+        crosshairSpreadAnimationRef.current = null;
+      }
+
+      setIsCrosshairRecovering(false);
+      setCrosshairSpread(0);
+    }
+  }, [crosshairSettings]);
+
+  useEffect(() => {
+    if (phaseRef.current !== "idle") {
+      return;
+    }
+
+    const nextDurationMs = trainingSettings.durationSeconds * 1000;
+    gameStateRef.current.remainingMs = nextDurationMs;
+    gameStateRef.current.durationMs = nextDurationMs;
+    gameStateRef.current.timeline = createEmptyTimeline(nextDurationMs);
+    setRemainingMs(nextDurationMs);
+  }, [trainingSettings.durationSeconds]);
+
+  useEffect(() => {
+    sensitivityRef.current = {
+      x: trainingSettings.sensitivityX,
+      y: trainingSettings.sensitivityY,
+    };
+  }, [trainingSettings.sensitivityX, trainingSettings.sensitivityY]);
+
+  useEffect(() => {
+    const material = targetMaterialRef.current;
+    if (!material) {
+      return;
+    }
+
+    material.color.set(targetSettings.color);
+    material.emissive.set(targetSettings.color);
+  }, [targetSettings.color]);
 
   const syncStats = useCallback(() => {
     const gameState = gameStateRef.current;
@@ -163,6 +242,26 @@ export function TrainingPage() {
     }
   }, [syncStats]);
 
+  const playCrosshairSpread = useCallback(() => {
+    if (!crosshairSettingsRef.current.dynamicSpreadEnabled) {
+      setIsCrosshairRecovering(false);
+      setCrosshairSpread(0);
+      return;
+    }
+
+    if (crosshairSpreadAnimationRef.current !== null) {
+      window.cancelAnimationFrame(crosshairSpreadAnimationRef.current);
+    }
+
+    setIsCrosshairRecovering(false);
+    setCrosshairSpread(crosshairSpreadMaxOffset);
+    crosshairSpreadAnimationRef.current = window.requestAnimationFrame(() => {
+      setIsCrosshairRecovering(true);
+      setCrosshairSpread(0);
+      crosshairSpreadAnimationRef.current = null;
+    });
+  }, []);
+
   const requestPointerLock = useCallback(async () => {
     const canvas = mountRef.current?.querySelector("canvas");
     if (!canvas) {
@@ -172,6 +271,8 @@ export function TrainingPage() {
     if (document.pointerLockElement === canvas) {
       return true;
     }
+
+    suppressPointerUnlockUntilRef.current = performance.now() + 800;
 
     const waitForPointerLock = new Promise<boolean>((resolve) => {
       let settled = false;
@@ -210,13 +311,9 @@ export function TrainingPage() {
     });
 
     try {
-      await canvas.requestPointerLock({ unadjustedMovement: true });
+      await canvas.requestPointerLock();
     } catch {
-      try {
-        await canvas.requestPointerLock();
-      } catch {
-        return false;
-      }
+      return false;
     }
 
     return waitForPointerLock;
@@ -237,8 +334,11 @@ export function TrainingPage() {
       }
 
       clearCountdownTimer();
+      suppressPointerUnlockUntilRef.current = performance.now() + 250;
 
       if (reset) {
+        const nextDurationMs = trainingSettings.durationSeconds * 1000;
+
         gameStateRef.current = {
           ...gameStateRef.current,
           activeTargetIndices: [],
@@ -248,13 +348,14 @@ export function TrainingPage() {
           lastTickAt: 0,
           pitch: 0,
           reactionSamples: [],
-          remainingMs: durationMs,
-          timeline: createEmptyTimeline(),
+          remainingMs: nextDurationMs,
+          timeline: createEmptyTimeline(nextDurationMs),
+          durationMs: nextDurationMs,
           startedAt: performance.now(),
           yaw: 0,
         };
 
-        setRemainingMs(durationMs);
+        setRemainingMs(nextDurationMs);
         setStats({ hits: 0, misses: 0, averageReactionMs: 0 });
         spawnInitialTargets();
       } else {
@@ -279,7 +380,7 @@ export function TrainingPage() {
         setPhase("running");
       }, 1000);
     },
-    [clearCountdownTimer, requestPointerLock, spawnInitialTargets],
+    [clearCountdownTimer, requestPointerLock, spawnInitialTargets, trainingSettings.durationSeconds],
   );
 
   const startTraining = useCallback(() => {
@@ -301,12 +402,84 @@ export function TrainingPage() {
     syncStats();
   }, [clearCountdownTimer, syncStats]);
 
+  const openTrainingSettings = useCallback(() => {
+    if (gameStateRef.current.isRunning || phaseRef.current === "countdown") {
+      pauseTraining();
+    }
+
+    setIsSettingsOpen(true);
+  }, [pauseTraining]);
+
   const restartTraining = useCallback(() => {
+    setIsSettingsOpen(false);
     startCountdown({ reset: true });
   }, [startCountdown]);
 
+  const guardOverlayAction = useCallback(
+    (event: SyntheticEvent) => {
+      if (areOverlayActionsEnabled) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+    },
+    [areOverlayActionsEnabled],
+  );
+
   useEffect(() => {
-    return () => clearCountdownTimer();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.repeat) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (isSettingsOpen) {
+        setIsSettingsOpen(false);
+        return;
+      }
+
+      if (phaseRef.current === "paused") {
+        resumeTraining();
+        return;
+      }
+
+      if (gameStateRef.current.isRunning || phaseRef.current === "countdown") {
+        pauseTraining();
+
+        if (document.pointerLockElement) {
+          document.exitPointerLock();
+        }
+      }
+    };
+    const preventEscapeDefault = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+    };
+
+    window.addEventListener("keydown", handleKeyDown, { capture: true });
+    window.addEventListener("keyup", preventEscapeDefault, { capture: true });
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, { capture: true });
+      window.removeEventListener("keyup", preventEscapeDefault, { capture: true });
+    };
+  }, [isSettingsOpen, pauseTraining, resumeTraining]);
+
+  useEffect(() => {
+    return () => {
+      clearCountdownTimer();
+
+      if (crosshairSpreadAnimationRef.current !== null) {
+        window.cancelAnimationFrame(crosshairSpreadAnimationRef.current);
+      }
+    };
   }, [clearCountdownTimer]);
 
   useEffect(() => {
@@ -386,14 +559,15 @@ export function TrainingPage() {
     scene.add(rightWall);
 
     const targetMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0xff7a1a,
-      emissive: 0x6b1800,
+      color: targetSettings.color,
+      emissive: targetSettings.color,
       emissiveIntensity: 0.18,
       roughness: 0.34,
       metalness: 0.18,
       clearcoat: 0.65,
       clearcoatRoughness: 0.22,
     });
+    targetMaterialRef.current = targetMaterial;
     const targetGeometry = new THREE.SphereGeometry(targetRadius, 48, 32);
     const targets = Array.from({ length: 3 }, () => {
       const target = new THREE.Mesh(targetGeometry, targetMaterial);
@@ -455,8 +629,8 @@ export function TrainingPage() {
       }
 
       const gameState = gameStateRef.current;
-      gameState.yaw -= event.movementX * sensitivity * baseRadiansPerPixel;
-      gameState.pitch -= event.movementY * sensitivity * baseRadiansPerPixel;
+      gameState.yaw -= event.movementX * sensitivityRef.current.x * baseRadiansPerPixel;
+      gameState.pitch -= event.movementY * sensitivityRef.current.y * baseRadiansPerPixel;
       gameState.yaw = THREE.MathUtils.clamp(gameState.yaw, -maxYaw, maxYaw);
       gameState.pitch = THREE.MathUtils.clamp(gameState.pitch, -maxPitch, maxPitch);
       camera.rotation.set(gameState.pitch, gameState.yaw, 0, "YXZ");
@@ -476,7 +650,7 @@ export function TrainingPage() {
       const intersections = raycaster.intersectObjects(targetRefs.current, false);
       const hitTarget = intersections.find((intersection: any) => intersection.object.visible)?.object;
       const gameState = gameStateRef.current;
-      const elapsedMs = durationMs - gameState.remainingMs;
+      const elapsedMs = gameState.durationMs - gameState.remainingMs;
       const bucketIndex = Math.min(
         gameState.timeline.length - 1,
         Math.max(0, Math.floor(elapsedMs / 1000)),
@@ -498,12 +672,17 @@ export function TrainingPage() {
         gameState.misses += 1;
       }
 
+      playCrosshairSpread();
       syncStats();
     };
 
     const handlePointerLockChange = () => {
       const locked = document.pointerLockElement === renderer.domElement;
       setIsPointerLocked(locked);
+
+      if (!locked && performance.now() < suppressPointerUnlockUntilRef.current) {
+        return;
+      }
 
       if (!locked && (gameStateRef.current.isRunning || phaseRef.current === "countdown")) {
         pauseTraining();
@@ -528,14 +707,21 @@ export function TrainingPage() {
       renderer.dispose();
       targetGeometry.dispose();
       targetMaterial.dispose();
+      targetMaterialRef.current = null;
       roomMaterial.dispose();
       accentMaterial.dispose();
       mount.removeChild(renderer.domElement);
     };
-  }, [finishTraining, pauseTraining, replaceHitTarget, syncStats]);
+  }, [finishTraining, pauseTraining, playCrosshairSpread, replaceHitTarget, syncStats]);
 
   const shots = stats.hits + stats.misses;
   const accuracy = shots > 0 ? Math.round((stats.hits / shots) * 100) : 0;
+  const displayedCrosshairSize = crosshairSettings.size;
+  const crosshairLineLength = displayedCrosshairSize * 0.32;
+  const crosshairLineGap = crosshairSettings.outerCrosshairOffset + crosshairSpread;
+  const crosshairSpreadTransition = isCrosshairRecovering
+    ? `transform ${crosshairSettings.spreadRecoverySeconds}s ${crosshairRecoveryEasing}`
+    : "none";
   const resultTrend = useMemo(() => {
     const timeline = gameStateRef.current.timeline;
 
@@ -557,12 +743,68 @@ export function TrainingPage() {
 
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,0,0,0.03)_48%,rgba(0,0,0,0.22)_100%)]" />
 
-      <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 h-8 w-8 -translate-x-1/2 -translate-y-1/2">
-        <div className="absolute left-1/2 top-0 h-2.5 w-px -translate-x-1/2 bg-white/80" />
-        <div className="absolute bottom-0 left-1/2 h-2.5 w-px -translate-x-1/2 bg-white/80" />
-        <div className="absolute left-0 top-1/2 h-px w-2.5 -translate-y-1/2 bg-white/80" />
-        <div className="absolute right-0 top-1/2 h-px w-2.5 -translate-y-1/2 bg-white/80" />
-        <div className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-primary/80" />
+      <div
+        className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2"
+        style={{
+          height: displayedCrosshairSize,
+          opacity: crosshairSettings.opacity,
+          width: displayedCrosshairSize,
+        }}
+      >
+        {crosshairSettings.outerCrosshairEnabled && (
+          <>
+            <div
+              className="absolute left-1/2 top-1/2"
+              style={{
+                backgroundColor: crosshairSettings.color,
+                height: crosshairLineLength,
+                transform: `translate(-50%, calc(-100% - ${crosshairLineGap}px))`,
+                transition: crosshairSpreadTransition,
+                width: crosshairSettings.thickness,
+              }}
+            />
+            <div
+              className="absolute left-1/2 top-1/2"
+              style={{
+                backgroundColor: crosshairSettings.color,
+                height: crosshairLineLength,
+                transform: `translate(-50%, ${crosshairLineGap}px)`,
+                transition: crosshairSpreadTransition,
+                width: crosshairSettings.thickness,
+              }}
+            />
+            <div
+              className="absolute left-1/2 top-1/2"
+              style={{
+                backgroundColor: crosshairSettings.color,
+                height: crosshairSettings.thickness,
+                transform: `translate(calc(-100% - ${crosshairLineGap}px), -50%)`,
+                transition: crosshairSpreadTransition,
+                width: crosshairLineLength,
+              }}
+            />
+            <div
+              className="absolute left-1/2 top-1/2"
+              style={{
+                backgroundColor: crosshairSettings.color,
+                height: crosshairSettings.thickness,
+                transform: `translate(${crosshairLineGap}px, -50%)`,
+                transition: crosshairSpreadTransition,
+                width: crosshairLineLength,
+              }}
+            />
+          </>
+        )}
+        {crosshairSettings.centerDotEnabled && (
+          <div
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{
+              backgroundColor: crosshairSettings.color,
+              height: crosshairSettings.centerDotSize,
+              width: crosshairSettings.centerDotSize,
+            }}
+          />
+        )}
       </div>
 
       <div className="absolute left-6 right-6 top-6 z-20 flex items-start justify-between gap-4">
@@ -625,8 +867,8 @@ export function TrainingPage() {
       )}
 
       {phase === "complete" && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/45 px-6 backdrop-blur-md">
-          <div className="grid w-full max-w-5xl gap-5 lg:grid-cols-[1.35fr_0.65fr]">
+        <div className="absolute inset-0 z-30 flex items-center justify-center overflow-y-auto bg-black/45 px-4 py-6 backdrop-blur-md sm:px-6">
+          <div className="grid w-full max-w-7xl gap-5 lg:grid-cols-[minmax(0,1fr)_260px] xl:grid-cols-[minmax(0,1fr)_300px]">
             <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-6 shadow-[0_24px_90px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-2xl">
               <div className="mb-5 flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
@@ -675,17 +917,27 @@ export function TrainingPage() {
                   {t("grid3x3.mode", { defaultValue: "Grid 3x3" })}
                 </div>
               </div>
-              <div className="flex flex-col gap-3">
-                <Button size="lg" onClick={restartTraining} className="py-6">
+              <div
+                className={cn("flex flex-col gap-3 transition-opacity", !areOverlayActionsEnabled && "opacity-60")}
+                onClickCapture={guardOverlayAction}
+                onPointerDownCapture={guardOverlayAction}
+              >
+                <Button size="lg" onClick={restartTraining} disabled={!areOverlayActionsEnabled} className="py-6">
                   <RotateCcw className="h-4 w-4" />
                   {t("grid3x3.restart", { defaultValue: "重新开始" })}
                 </Button>
-                <Button size="lg" variant="outline" className="py-6">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={openTrainingSettings}
+                  disabled={!areOverlayActionsEnabled}
+                  className="py-6"
+                >
                   <Settings className="h-4 w-4" />
                   {t("grid3x3.settings", { defaultValue: "设置" })}
                 </Button>
                 <Button asChild size="lg" variant="outline" className="py-6">
-                  <Link to="/">
+                  <Link to="/" aria-disabled={!areOverlayActionsEnabled} tabIndex={areOverlayActionsEnabled ? undefined : -1}>
                     <ArrowLeft className="h-4 w-4" />
                     {t("grid3x3.backHome", { defaultValue: "返回首页" })}
                   </Link>
@@ -707,25 +959,58 @@ export function TrainingPage() {
                 {t("grid3x3.title", { defaultValue: "九宫格射击训练" })}
               </div>
             </div>
-            <div className="flex flex-col gap-3">
-              <Button size="lg" onClick={resumeTraining} className="py-6">
+            <div
+              className={cn("flex flex-col gap-3 transition-opacity", !areOverlayActionsEnabled && "opacity-60")}
+              onClickCapture={guardOverlayAction}
+              onPointerDownCapture={guardOverlayAction}
+            >
+              <Button size="lg" onClick={resumeTraining} disabled={!areOverlayActionsEnabled} className="py-6">
                 {t("grid3x3.continue", { defaultValue: "继续游戏" })}
               </Button>
-              <Button size="lg" variant="outline" onClick={restartTraining} className="py-6">
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={restartTraining}
+                disabled={!areOverlayActionsEnabled}
+                className="py-6"
+              >
                 <RotateCcw className="h-4 w-4" />
                 {t("grid3x3.restart", { defaultValue: "重新开始" })}
               </Button>
-              <Button size="lg" variant="outline" className="py-6">
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={openTrainingSettings}
+                disabled={!areOverlayActionsEnabled}
+                className="py-6"
+              >
                 <Settings className="h-4 w-4" />
                 {t("grid3x3.settings", { defaultValue: "设置" })}
               </Button>
               <Button asChild size="lg" variant="outline" className="py-6">
-                <Link to="/">
+                <Link to="/" aria-disabled={!areOverlayActionsEnabled} tabIndex={areOverlayActionsEnabled ? undefined : -1}>
                   <ArrowLeft className="h-4 w-4" />
                   {t("grid3x3.backHome", { defaultValue: "返回首页" })}
                 </Link>
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {isSettingsOpen && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/50 px-4 py-16 backdrop-blur-md sm:px-6 lg:py-10">
+          <Button
+            variant="outline"
+            size="default"
+            onClick={() => setIsSettingsOpen(false)}
+            className="absolute right-6 top-6 z-20 bg-black/35 backdrop-blur-xl"
+            aria-label={t("grid3x3.closeSettings", { defaultValue: "关闭设置" })}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+          <div className="relative h-full min-h-0 w-full max-w-6xl">
+            <SettingsPanel surface="glass" />
           </div>
         </div>
       )}

@@ -100,9 +100,11 @@ export function HeroSection() {
                   </Link>
                 </Button>
 
-                <Button size="lg" variant="outline" className="px-10 py-6">
-                  <Settings className="h-4 w-4" />
-                  {t("hero.settings", { defaultValue: "设置" })}
+                <Button asChild size="lg" variant="outline" className="px-10 py-6">
+                  <Link to="/settings">
+                    <Settings className="h-4 w-4" />
+                    {t("hero.settings", { defaultValue: "设置" })}
+                  </Link>
                 </Button>
               </div>
 

@@ -128,13 +128,7 @@ export function ResultTrendChart({
           gridIndex: 0,
           min: 0,
           max: 100,
-          name: "%",
-          nameLocation: "middle",
-          nameGap: 36,
           position: "right",
-          nameTextStyle: {
-            color: "rgba(255,255,255,0.62)",
-          },
           axisLabel: {
             color: "rgba(255,255,255,0.5)",
           },
@@ -149,13 +143,7 @@ export function ResultTrendChart({
           gridIndex: 1,
           min: 0,
           minInterval: 1,
-          name: "hits",
-          nameLocation: "middle",
-          nameGap: 36,
           position: "right",
-          nameTextStyle: {
-            color: "rgba(255,255,255,0.62)",
-          },
           axisLabel: {
             color: "rgba(255,255,255,0.5)",
           },
@@ -169,13 +157,7 @@ export function ResultTrendChart({
           type: "value",
           gridIndex: 2,
           min: 0,
-          name: "ms",
-          nameLocation: "middle",
-          nameGap: 36,
           position: "right",
-          nameTextStyle: {
-            color: "rgba(255,255,255,0.62)",
-          },
           axisLabel: {
             color: "rgba(255,255,255,0.5)",
           },
@@ -188,7 +170,7 @@ export function ResultTrendChart({
       ],
       series: [
         {
-          name: accuracyLabel,
+          name: `${accuracyLabel}(%)`,
           type: "line",
           xAxisIndex: 0,
           yAxisIndex: 0,
@@ -203,7 +185,7 @@ export function ResultTrendChart({
           },
         },
         {
-          name: hitsLabel,
+          name: `${hitsLabel}(hits)`,
           type: "line",
           xAxisIndex: 1,
           yAxisIndex: 1,
@@ -215,7 +197,7 @@ export function ResultTrendChart({
           },
         },
         {
-          name: averageReactionLabel,
+          name: `${averageReactionLabel}(ms)`,
           type: "line",
           xAxisIndex: 2,
           yAxisIndex: 2,
@@ -239,10 +221,15 @@ export function ResultTrendChart({
     chartInstanceRef.current = echarts.init(chartRef.current, "dark", { renderer: "canvas" });
 
     const handleResize = () => chartInstanceRef.current?.resize();
+    const resizeObserver =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => chartInstanceRef.current?.resize());
+
     window.addEventListener("resize", handleResize);
+    resizeObserver?.observe(chartRef.current);
 
     return () => {
       window.removeEventListener("resize", handleResize);
+      resizeObserver?.disconnect();
       chartInstanceRef.current?.dispose();
       chartInstanceRef.current = null;
     };
