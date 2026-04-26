@@ -25,7 +25,7 @@
     "hitEffectEnabled": "击中特效",
     "hitEffectEnabledDescription": "命中小球时播放短暂的视觉反馈，默认关闭。",
     "hitEffectType": "特效样式",
-    "hitEffectTypeDescription": "可选择气球破裂、能量碎裂或爆炸冲击。",
+    "hitEffectTypeDescription": "可选择气球破裂、能量碎裂、爆炸冲击或核弹爆炸。",
     "outerCrosshairEnabled": "外部准星",
     "outerCrosshairEnabledDescription": "显示准星外部十字线",
     "outerCrosshairOffset": "外部准星偏移",
@@ -49,6 +49,11 @@
       "description": "暖色爆心和火花冲击，命中感更强。",
       "icon": "💥",
       "title": "爆炸"
+    },
+    "nuke": {
+      "description": "超大闪光、冲击波和密集火花，并触发渐衰屏幕抖动。",
+      "icon": "☢️",
+      "title": "核弹爆炸"
     }
   },
   "messages": {

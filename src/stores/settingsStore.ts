@@ -20,7 +20,7 @@ export interface TargetSettings {
   color: string;
 }
 
-export type HitEffectType = "balloon" | "burst" | "explosion";
+export type HitEffectType = "balloon" | "burst" | "explosion" | "nuke";
 
 export interface HitEffectSettings {
   enabled: boolean;
@@ -101,7 +101,7 @@ function readBoolean(value: unknown, fallback: boolean) {
 }
 
 function readHitEffectType(value: unknown, fallback: HitEffectType): HitEffectType {
-  return value === "balloon" || value === "burst" || value === "explosion" ? value : fallback;
+  return value === "balloon" || value === "burst" || value === "explosion" || value === "nuke" ? value : fallback;
 }
 
 function loadSettings(): PersistedSettings {

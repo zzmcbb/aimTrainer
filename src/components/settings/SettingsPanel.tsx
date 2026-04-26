@@ -407,8 +407,8 @@ export function SettingsPanel({ className, surface = "page" }: SettingsPanelProp
                     {t(`hitEffects.${hit.type}.title`, { defaultValue: hit.type })}
                   </span>
                 </div>
-                <div className="grid gap-3 md:grid-cols-3">
-                  {(["balloon", "burst", "explosion"] satisfies HitEffectType[]).map((effectType) => {
+                <div className="grid gap-3 md:grid-cols-4">
+                  {(["balloon", "burst", "explosion", "nuke"] satisfies HitEffectType[]).map((effectType) => {
                     const isSelected = hit.type === effectType;
 
                     return (

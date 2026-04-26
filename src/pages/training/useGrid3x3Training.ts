@@ -22,8 +22,11 @@ const logicTickRate = 240;
 const logicStepMs = 1000 / logicTickRate;
 const maxAccumulatedLogicMs = 250;
 const targetFadeInMs = 50;
+const maxActiveHitEffects = 8;
+const nukeEffectCooldownMs = 140;
+const nukeParticleCount = 54;
 
-type HitEffectKind = "balloon" | "burst" | "explosion";
+type HitEffectKind = "balloon" | "burst" | "explosion" | "nuke";
 
 interface HitEffectParticle {
   direction: any;
@@ -34,12 +37,20 @@ interface HitEffectParticle {
 }
 
 interface HitEffectInstance {
+  blastRings?: any[];
   durationMs: number;
   group: any;
   particles: HitEffectParticle[];
   ring?: any;
+  shockLight?: any;
   startedAt: number;
   type: HitEffectKind;
+}
+
+interface ScreenShakeState {
+  durationMs: number;
+  intensity: number;
+  startedAt: number;
 }
 
 const gridPositions = Array.from({ length: 9 }, (_, index) => {
@@ -601,6 +612,8 @@ export function useGrid3x3Training() {
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.domElement.style.display = "block";
     renderer.domElement.style.touchAction = "none";
+    renderer.domElement.style.transformOrigin = "center center";
+    renderer.domElement.style.willChange = "transform";
     mount.appendChild(renderer.domElement);
 
     const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x7f8ea3, 2.1);
@@ -679,6 +692,8 @@ export function useGrid3x3Training() {
     const raycaster = new THREE.Raycaster();
     const center = new THREE.Vector2(0, 0);
     const hitEffects: HitEffectInstance[] = [];
+    let lastNukeEffectAt = 0;
+    let screenShake: ScreenShakeState | null = null;
 
     const disposeEffectObject = (object: any) => {
       object.traverse((child: any) => {
@@ -701,6 +716,29 @@ export function useGrid3x3Training() {
     const removeHitEffect = (effect: HitEffectInstance) => {
       scene.remove(effect.group);
       disposeEffectObject(effect.group);
+    };
+
+    const pruneHitEffects = (predicate: (effect: HitEffectInstance) => boolean) => {
+      for (let index = hitEffects.length - 1; index >= 0; index -= 1) {
+        const effect = hitEffects[index];
+
+        if (!predicate(effect)) {
+          continue;
+        }
+
+        hitEffects.splice(index, 1);
+        removeHitEffect(effect);
+      }
+    };
+
+    const trimOldestHitEffects = () => {
+      while (hitEffects.length >= maxActiveHitEffects) {
+        const effect = hitEffects.shift();
+
+        if (effect) {
+          removeHitEffect(effect);
+        }
+      }
     };
 
     const createParticleMaterial = (color: any, opacity = 0.95) =>
@@ -742,6 +780,14 @@ export function useGrid3x3Training() {
       };
     };
 
+    const triggerScreenShake = (intensity: number, durationMs: number) => {
+      screenShake = {
+        durationMs,
+        intensity,
+        startedAt: performance.now(),
+      };
+    };
+
     const spawnHitEffect = (position: any) => {
       const settings = hitSettingsRef.current;
       if (!settings.enabled) {
@@ -749,6 +795,22 @@ export function useGrid3x3Training() {
       }
 
       const effectType = settings.type;
+      const effectNow = performance.now();
+
+      if (effectType === "nuke") {
+        triggerScreenShake(18, 760);
+
+        if (effectNow - lastNukeEffectAt < nukeEffectCooldownMs) {
+          return;
+        }
+
+        lastNukeEffectAt = effectNow;
+        pruneHitEffects((effect) => effect.type === "nuke");
+        trimOldestHitEffects();
+      } else {
+        trimOldestHitEffects();
+      }
+
       const group = new THREE.Group();
       group.position.copy(position);
       scene.add(group);
@@ -756,8 +818,10 @@ export function useGrid3x3Training() {
       const particles: HitEffectParticle[] = [];
       const targetColor = new THREE.Color(targetSettingsRef.current.color);
       const accentColor = targetColor.clone().offsetHSL(0.08, 0.2, 0.18);
-      const durationMs = effectType === "explosion" ? 620 : effectType === "balloon" ? 460 : 520;
+      const durationMs = effectType === "nuke" ? 1180 : effectType === "explosion" ? 620 : effectType === "balloon" ? 460 : 520;
       let ring: any;
+      let blastRings: any[] | undefined;
+      let shockLight: any;
 
       if (effectType === "burst") {
         const ringMaterial = createParticleMaterial(targetColor, 0.72);
@@ -771,11 +835,37 @@ export function useGrid3x3Training() {
         group.add(ring);
       }
 
-      const particleCount = effectType === "explosion" ? 24 : effectType === "balloon" ? 18 : 20;
+      if (effectType === "nuke") {
+        const coreMaterial = createParticleMaterial(0xffffff, 1);
+        ring = new THREE.Mesh(new THREE.SphereGeometry(targetRadius * 0.78, 32, 20), coreMaterial);
+        group.add(ring);
+
+        blastRings = [
+          new THREE.Mesh(new THREE.TorusGeometry(targetRadius * 0.92, 0.04, 12, 96), createParticleMaterial(0xfff3a8, 0.92)),
+          new THREE.Mesh(new THREE.TorusGeometry(targetRadius * 1.12, 0.035, 12, 96), createParticleMaterial(0xff8a2a, 0.78)),
+          new THREE.Mesh(new THREE.TorusGeometry(targetRadius * 1.36, 0.03, 12, 96), createParticleMaterial(0xff3728, 0.62)),
+        ];
+
+        blastRings.forEach((blastRing, index) => {
+          blastRing.rotation.set(
+            index === 1 ? Math.PI / 2 : THREE.MathUtils.degToRad(72),
+            index === 2 ? Math.PI / 2 : 0,
+            index * THREE.MathUtils.degToRad(36),
+          );
+          group.add(blastRing);
+        });
+
+        shockLight = new THREE.PointLight(0xffc15f, 18, 14);
+        group.add(shockLight);
+      }
+
+      const particleCount = effectType === "nuke" ? nukeParticleCount : effectType === "explosion" ? 24 : effectType === "balloon" ? 18 : 20;
 
       for (let index = 0; index < particleCount; index += 1) {
         const color =
-          effectType === "explosion"
+          effectType === "nuke"
+            ? [0xffffff, 0xfff1a6, 0xffb347, 0xff6a2a, 0xff2f1f][index % 5]
+            : effectType === "explosion"
             ? [0xfff1a6, 0xff9a3d, 0xff4d2e][index % 3]
             : effectType === "balloon"
               ? targetColor
@@ -791,6 +881,14 @@ export function useGrid3x3Training() {
         const geometry =
           effectType === "balloon"
             ? new THREE.CircleGeometry(THREE.MathUtils.randFloat(0.12, 0.23), 3)
+            : effectType === "nuke"
+              ? index % 4 === 0
+                ? new THREE.BoxGeometry(
+                    THREE.MathUtils.randFloat(0.07, 0.16),
+                    THREE.MathUtils.randFloat(0.28, 0.58),
+                    THREE.MathUtils.randFloat(0.07, 0.14),
+                  )
+                : new THREE.SphereGeometry(THREE.MathUtils.randFloat(0.06, 0.18), 12, 8)
             : effectType === "explosion"
               ? new THREE.SphereGeometry(THREE.MathUtils.randFloat(0.045, 0.11), 10, 8)
               : new THREE.BoxGeometry(
@@ -803,19 +901,26 @@ export function useGrid3x3Training() {
           geometry,
           material,
           effectType === "balloon" ? balloonOrigin : new THREE.Vector3(0, 0, 0),
-          effectType === "explosion" ? 1.18 : effectType === "balloon" ? 1.05 : 0.88,
+          effectType === "nuke" ? 2.55 : effectType === "explosion" ? 1.18 : effectType === "balloon" ? 1.05 : 0.88,
           effectType === "balloon" ? balloonDirection : undefined,
         );
+
+        if (effectType === "nuke") {
+          particle.speed *= THREE.MathUtils.randFloat(1.35, 2.15);
+          particle.spin.multiplyScalar(1.45);
+        }
 
         particles.push(particle);
         group.add(particle.object);
       }
 
       hitEffects.push({
+        blastRings,
         durationMs,
         group,
         particles,
         ring,
+        shockLight,
         startedAt: performance.now(),
         type: effectType,
       });
@@ -831,25 +936,50 @@ export function useGrid3x3Training() {
         if (effect.ring) {
           const ringMaterial = effect.ring.material;
           const ringScale =
-            effect.type === "explosion"
+            effect.type === "nuke"
+              ? 1 + easeOut * 5.8
+              : effect.type === "explosion"
               ? 1 + easeOut * 2.7
               : 1 + easeOut * 2.45;
 
           effect.ring.scale.setScalar(ringScale);
-          ringMaterial.opacity = Math.max(0, fade * 0.78);
+          ringMaterial.opacity = Math.max(0, fade * (effect.type === "nuke" ? 1 : 0.78));
+        }
+
+        effect.blastRings?.forEach((blastRing, ringIndex) => {
+          const ringMaterial = blastRing.material;
+          const delayedProgress = THREE.MathUtils.clamp(progress * (1.12 + ringIndex * 0.16) - ringIndex * 0.08, 0, 1);
+          const delayedEaseOut = 1 - (1 - delayedProgress) ** 3;
+          blastRing.scale.setScalar(1 + delayedEaseOut * (6.8 + ringIndex * 2.35));
+          ringMaterial.opacity = Math.max(0, (1 - delayedProgress) * (0.68 - ringIndex * 0.12));
+        });
+
+        if (effect.shockLight) {
+          effect.shockLight.intensity = Math.max(0, fade * fade * 18);
         }
 
         effect.particles.forEach((particle) => {
           const material = particle.object.material;
           const distance = particle.speed * easeOut;
-          const gravity = effect.type === "balloon" ? progress * progress * 1.05 : progress * progress * 0.25;
+          const gravity =
+            effect.type === "nuke"
+              ? progress * progress * 0.48
+              : effect.type === "balloon"
+                ? progress * progress * 1.05
+                : progress * progress * 0.25;
 
           particle.object.position.copy(particle.origin).addScaledVector(particle.direction, distance);
           particle.object.position.y -= gravity;
           particle.object.rotation.x += particle.spin.x * 0.015;
           particle.object.rotation.y += particle.spin.y * 0.015;
           particle.object.rotation.z += particle.spin.z * 0.015;
-          particle.object.scale.setScalar(effect.type === "balloon" ? 0.95 : 0.45 + fade * 0.85);
+          particle.object.scale.setScalar(
+            effect.type === "balloon"
+              ? 0.95
+              : effect.type === "nuke"
+                ? 0.38 + fade * 1.55
+                : 0.45 + fade * 0.85,
+          );
           material.opacity = effect.type === "balloon" ? 0.95 : Math.max(0, fade);
         });
 
@@ -858,6 +988,29 @@ export function useGrid3x3Training() {
           removeHitEffect(effect);
         }
       }
+    };
+
+    const updateScreenShake = (frameNow: number) => {
+      if (!screenShake) {
+        renderer.domElement.style.transform = "";
+        return;
+      }
+
+      const progress = THREE.MathUtils.clamp((frameNow - screenShake.startedAt) / screenShake.durationMs, 0, 1);
+
+      if (progress >= 1) {
+        screenShake = null;
+        renderer.domElement.style.transform = "";
+        return;
+      }
+
+      const fade = (1 - progress) ** 2;
+      const amplitude = screenShake.intensity * fade;
+      const offsetX = (Math.random() - 0.5) * amplitude;
+      const offsetY = (Math.random() - 0.5) * amplitude;
+      const rotation = (Math.random() - 0.5) * amplitude * 0.045;
+
+      renderer.domElement.style.transform = `translate3d(${offsetX.toFixed(2)}px, ${offsetY.toFixed(2)}px, 0) rotate(${rotation.toFixed(3)}deg)`;
     };
 
     const updateGameLogic = (deltaMs: number) => {
@@ -928,6 +1081,7 @@ export function useGrid3x3Training() {
 
       updateTargetFadeIn(frameNow);
       updateHitEffects(frameNow);
+      updateScreenShake(frameNow);
       renderer.render(scene, camera);
       animationRef.current = window.requestAnimationFrame(animate);
     };
@@ -1037,6 +1191,7 @@ export function useGrid3x3Training() {
       targetMaterialRef.current = [];
       hitEffects.forEach(removeHitEffect);
       hitEffects.length = 0;
+      renderer.domElement.style.transform = "";
       roomMaterial.dispose();
       accentMaterial.dispose();
       mount.removeChild(renderer.domElement);

@@ -25,7 +25,7 @@
     "hitEffectEnabled": "Hit Effects",
     "hitEffectEnabledDescription": "Play a short visual response when targets are hit. Off by default.",
     "hitEffectType": "Effect Style",
-    "hitEffectTypeDescription": "Choose balloon pop, energy burst, or explosion impact.",
+    "hitEffectTypeDescription": "Choose balloon pop, energy burst, explosion impact, or nuclear blast.",
     "outerCrosshairEnabled": "Outer Crosshair",
     "outerCrosshairEnabledDescription": "Show the outer crosshair lines",
     "outerCrosshairOffset": "Outer Crosshair Offset",
@@ -49,6 +49,11 @@
       "description": "Warm core flash and sparks for heavier hit impact.",
       "icon": "💥",
       "title": "Explosion"
+    },
+    "nuke": {
+      "description": "Huge flash, shockwaves, dense sparks, and fading screen shake.",
+      "icon": "☢️",
+      "title": "Nuclear Blast"
     }
   },
   "messages": {
