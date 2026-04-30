@@ -74,9 +74,21 @@ export interface SoundAsset {
   waveformPeaks: number[];
 }
 
+interface SoundFileLike {
+  name: string;
+  size: number;
+  type: string;
+}
+
 export interface UploadSoundAssetOptions {
   file: File;
   onProgress?: (progress: number) => void;
+}
+
+export interface CreateSoundAssetFromBlobOptions {
+  blob: Blob;
+  name: string;
+  type: string;
 }
 
 class AimTrainerSoundDb extends Dexie {
@@ -131,11 +143,11 @@ export function createId(prefix: string) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
 }
 
-export function isSupportedSoundFile(file: File) {
+export function isSupportedSoundFile(file: SoundFileLike) {
   return validExtensions.test(file.name) && validMimeTypes.has(file.type);
 }
 
-export function getSoundFileError(file: File) {
+export function getSoundFileError(file: SoundFileLike) {
   if (!validExtensions.test(file.name)) {
     return "只支持 .mp3 和 .wav 音频文件。";
   }
@@ -186,23 +198,64 @@ export async function uploadSoundAsset({ file, onProgress }: UploadSoundAssetOpt
 
   const arrayBuffer = await file.arrayBuffer();
   const { durationMs, waveformPeaks } = await analyzeAudio(arrayBuffer.slice(0));
-  const mimeType = file.type.includes("wav") ? "audio/wav" : "audio/mpeg";
-  const asset: SoundAsset = {
+  const asset = createSoundAssetRecord({
     blob: file,
-    createdAt: Date.now(),
     durationMs,
-    id: createId("asset"),
-    mimeType,
     name: file.name,
-    size: file.size,
+    type: file.type,
     waveformPeaks,
-  };
+  });
 
   onProgress?.(92);
   await saveSoundAsset(asset);
   onProgress?.(100);
 
   return asset;
+}
+
+export async function createSoundAssetFromBlob({ blob, name, type }: CreateSoundAssetFromBlobOptions): Promise<SoundAsset> {
+  const error = getSoundFileError({ name, size: blob.size, type });
+  if (error) {
+    throw new Error(error);
+  }
+
+  const arrayBuffer = await blob.arrayBuffer();
+  const { durationMs, waveformPeaks } = await analyzeAudio(arrayBuffer.slice(0));
+  const asset = createSoundAssetRecord({
+    blob,
+    durationMs,
+    name,
+    type,
+    waveformPeaks,
+  });
+
+  await saveSoundAsset(asset);
+  return asset;
+}
+
+function createSoundAssetRecord({
+  blob,
+  durationMs,
+  name,
+  type,
+  waveformPeaks,
+}: {
+  blob: Blob;
+  durationMs: number;
+  name: string;
+  type: string;
+  waveformPeaks: number[];
+}): SoundAsset {
+  return {
+    blob,
+    createdAt: Date.now(),
+    durationMs,
+    id: createId("asset"),
+    mimeType: type.includes("wav") ? "audio/wav" : "audio/mpeg",
+    name,
+    size: blob.size,
+    waveformPeaks,
+  };
 }
 
 async function analyzeAudio(arrayBuffer: ArrayBuffer) {

@@ -1,13 +1,21 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { CheckCircle2, FileAudio, Music2, Pencil, Play, Trash2, Upload, Volume2, XCircle } from "lucide-react";
+import { CheckCircle2, Download, FileAudio, Music2, Pencil, Play, Trash2, Upload, Volume2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ToggleField } from "@/components/settings/SettingsFields";
 import { useTranslation } from "@/i18n";
 import {
+  exportComboSoundPackArchive,
+  getComboSoundPackArchiveFileError,
+  importComboSoundPackArchive,
+} from "@/lib/comboSoundPackArchive";
+import {
+  createSoundAssetFromBlob,
   createId,
+  deleteSoundAsset,
   getSoundAssets,
   getSoundFileError,
+  type ComboSoundPack,
   type HitFeedbackSource,
   type MissFeedbackMode,
   type SoundAsset,
@@ -29,6 +37,7 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
   const { t } = useTranslation("settings");
   const navigate = useNavigate();
   const [assetMap, setAssetMap] = useState<AssetMap>({});
+  const [comboArchiveMessage, setComboArchiveMessage] = useState("");
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
@@ -163,6 +172,112 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
         delete next.combo;
         return next;
       });
+    }
+  };
+
+  const importComboPack = async (file: File) => {
+    const fileError = getComboSoundPackArchiveFileError(file);
+    if (fileError) {
+      setComboArchiveMessage(fileError);
+      setMessage(fileError);
+      return;
+    }
+
+    setComboArchiveMessage("");
+    setMessage("");
+    setUploadProgress((progress) => ({ ...progress, combo_import: 1 }));
+
+    try {
+      const importedPack = await importComboSoundPackArchive(file);
+      setUploadProgress((progress) => ({ ...progress, combo_import: 45 }));
+      const asset = await createSoundAssetFromBlob({
+        blob: importedPack.audioBlob,
+        name: importedPack.audioFileName,
+        type: importedPack.audioMimeType,
+      });
+      const invalidClip = importedPack.clips.find((clip) => clip.endMs > asset.durationMs);
+      if (invalidClip) {
+        await deleteSoundAsset(asset.id);
+        throw new Error("整合包片段时间超出了音频长度。");
+      }
+
+      const pack: ComboSoundPack = {
+        clips: importedPack.clips
+          .map((clip) => ({
+            ...clip,
+            id: createId("combo_clip"),
+          }))
+          .sort((first, second) => first.index - second.index),
+        id: createId("combo_pack"),
+        name: importedPack.name,
+        sourceAssetId: asset.id,
+        updatedAt: Date.now(),
+      };
+      const shouldActivateImportedPack = sound.custom.comboMusic.packs.length === 0;
+
+      setAssetMap((current) => ({ ...current, [asset.id]: asset }));
+      updateCustom({
+        ...sound.custom,
+        comboMusic: {
+          ...sound.custom.comboMusic,
+          activePackId: shouldActivateImportedPack ? pack.id : sound.custom.comboMusic.activePackId,
+          clips: shouldActivateImportedPack ? pack.clips : sound.custom.comboMusic.clips,
+          enabled: shouldActivateImportedPack ? true : sound.custom.comboMusic.enabled,
+          mode: "manualClips",
+          overflowBehavior: "restart",
+          packs: [pack, ...sound.custom.comboMusic.packs],
+          sourceAssetId: shouldActivateImportedPack ? pack.sourceAssetId : sound.custom.comboMusic.sourceAssetId,
+        },
+        hitFeedback: {
+          ...sound.custom.hitFeedback,
+          enabled: shouldActivateImportedPack ? false : sound.custom.hitFeedback.enabled,
+          playWithComboMusic: false,
+        },
+      });
+      setUploadProgress((progress) => ({ ...progress, combo_import: 100 }));
+      setMessage(
+        shouldActivateImportedPack
+          ? `已导入「${pack.name}」，并作为当前整合包启用。`
+          : `已导入「${pack.name}」，当前选中的整合包保持不变。`,
+      );
+      setComboArchiveMessage(
+        shouldActivateImportedPack
+          ? `已导入「${pack.name}」，并作为当前整合包启用。`
+          : `已导入「${pack.name}」，当前选中的整合包保持不变。`,
+      );
+    } catch (importError) {
+      const nextMessage = importError instanceof Error ? importError.message : "整合包导入失败。";
+      setComboArchiveMessage(nextMessage);
+      setMessage(nextMessage);
+    } finally {
+      setUploadProgress((current) => {
+        const next = { ...current };
+        delete next.combo_import;
+        return next;
+      });
+    }
+  };
+
+  const exportComboPack = async (pack: ComboSoundPack) => {
+    const asset = assetMap[pack.sourceAssetId];
+    if (!asset) {
+      const nextMessage = "找不到这个整合包对应的音频文件，无法导出。";
+      setComboArchiveMessage(nextMessage);
+      setMessage(nextMessage);
+      return;
+    }
+
+    setComboArchiveMessage("");
+    setMessage("");
+    try {
+      const archive = await exportComboSoundPackArchive(pack, asset);
+      downloadBlob(archive, `${safeDownloadName(pack.name)}.aimcombo.zip`);
+      setMessage(`已导出「${pack.name}」。`);
+      setComboArchiveMessage(`已导出「${pack.name}」。`);
+    } catch (exportError) {
+      const nextMessage = exportError instanceof Error ? exportError.message : "整合包导出失败。";
+      setComboArchiveMessage(nextMessage);
+      setMessage(nextMessage);
     }
   };
 
@@ -457,7 +572,7 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
                             {pack.clips.length} 段音效
                           </div>
                         </button>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                           <Button
                             type="button"
                             variant={pack.id === activePackId ? "default" : "outline"}
@@ -481,6 +596,17 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
                           >
                             <Pencil className="h-4 w-4" />
                             编辑
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={!assetMap[pack.sourceAssetId]}
+                            onClick={() => void exportComboPack(pack)}
+                            title="导出整合包"
+                            className="min-w-0 px-2"
+                          >
+                            <Download className="h-4 w-4" />
+                            导出
                           </Button>
                           <Button
                             type="button"
@@ -512,8 +638,20 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
                   label="添加音效"
                   onFile={(file) => void uploadComboTrack(file)}
                 />
+                <UploadButton
+                  accept=".zip,application/zip,application/x-zip-compressed"
+                  disabled={!sound.enabled}
+                  label="导入整合包"
+                  onFile={(file) => void importComboPack(file)}
+                />
               </div>
               {typeof uploadProgress.combo === "number" && <ProgressBar value={uploadProgress.combo} />}
+              {typeof uploadProgress.combo_import === "number" && <ProgressBar value={uploadProgress.combo_import} />}
+              {comboArchiveMessage && (
+                <p className="rounded-xl border border-primary/15 bg-primary/8 p-3 text-sm text-muted-foreground">
+                  {comboArchiveMessage}
+                </p>
+              )}
             </div>
             <div className="grid gap-3 md:grid-cols-2">
               <ToggleField
@@ -750,10 +888,12 @@ function ComboAssetCard({
 }
 
 function UploadButton({
+  accept = ".mp3,.wav,audio/mpeg,audio/wav",
   disabled = false,
   label,
   onFile,
 }: {
+  accept?: string;
   disabled?: boolean;
   label: string;
   onFile: (file: File) => void;
@@ -769,7 +909,7 @@ function UploadButton({
       <input
         ref={inputRef}
         type="file"
-        accept=".mp3,.wav,audio/mpeg,audio/wav"
+        accept={accept}
         disabled={disabled}
         onChange={(event) => {
           const file = event.target.files?.[0];
@@ -847,4 +987,20 @@ function formatClipRange(clip: SoundClipRef, asset?: SoundAsset | null) {
 
 function formatMs(ms: number) {
   return `${(ms / 1000).toFixed(2)}s`;
+}
+
+function downloadBlob(blob: Blob, fileName: string) {
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+}
+
+function safeDownloadName(value: string) {
+  const trimmed = value.trim().replace(/[\\/:*?"<>|]+/g, "_");
+  return trimmed || "combo-pack";
 }
