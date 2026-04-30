@@ -745,7 +745,7 @@ export function SoundEditorPage() {
 
 function EditorShell({ children }: { children: ReactNode }) {
   return (
-    <main className="relative min-h-screen overflow-hidden">
+    <main className="relative h-full overflow-x-hidden overflow-y-auto">
       <style>
         {`
           .audio-editor-scroll {
@@ -808,7 +808,7 @@ function EditorShell({ children }: { children: ReactNode }) {
         `}
       </style>
       <ParallaxBackground intensityBoost={0.45} />
-      <div className="relative z-10 mx-auto flex h-screen w-full max-w-[1400px] flex-col px-4 py-4 sm:px-6 sm:py-6 lg:py-8">
+      <div className="relative z-10 mx-auto flex min-h-full w-full max-w-[1400px] flex-col px-4 py-4 sm:px-6 sm:py-6 lg:py-8">
         {children}
       </div>
     </main>
