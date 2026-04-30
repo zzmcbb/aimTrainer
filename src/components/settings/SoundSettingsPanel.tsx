@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { FileAudio, ListMusic, Music2, Play, Trash2, Upload, Volume2, XCircle } from "lucide-react";
+import { CheckCircle2, FileAudio, Music2, Pencil, Play, Trash2, Upload, Volume2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ToggleField } from "@/components/settings/SettingsFields";
 import { useTranslation } from "@/i18n";
@@ -8,10 +8,6 @@ import {
   createId,
   getSoundAssets,
   getSoundFileError,
-  type ComboBreakBehavior,
-  type ComboMusicMode,
-  type ComboOverflowBehavior,
-  type ComboResumeBehavior,
   type HitFeedbackSource,
   type MissFeedbackMode,
   type SoundAsset,
@@ -33,6 +29,7 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
   const { t } = useTranslation("settings");
   const navigate = useNavigate();
   const [assetMap, setAssetMap] = useState<AssetMap>({});
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const assetIds = useMemo(() => collectAssetIds(sound), [sound]);
@@ -89,6 +86,10 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
       if (target === "hit") {
         updateCustom({
           ...sound.custom,
+          comboMusic: {
+            ...sound.custom.comboMusic,
+            enabled: false,
+          },
           hitFeedback: {
             ...sound.custom.hitFeedback,
             customClip: clip,
@@ -140,9 +141,17 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
         ...sound.custom,
         comboMusic: {
           ...sound.custom.comboMusic,
+          activePackId: null,
+          clips: [],
           enabled: true,
           mode: "manualClips",
+          overflowBehavior: "restart",
           sourceAssetId: asset.id,
+        },
+        hitFeedback: {
+          ...sound.custom.hitFeedback,
+          enabled: false,
+          playWithComboMusic: false,
         },
       });
       navigate(`/settings/sounds/editor/${asset.id}`);
@@ -157,9 +166,149 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
     }
   };
 
+  const activePack =
+    sound.custom.comboMusic.packs.find((pack) => pack.id === sound.custom.comboMusic.activePackId) ??
+    sound.custom.comboMusic.packs.find((pack) => pack.sourceAssetId === sound.custom.comboMusic.sourceAssetId) ??
+    null;
+  const activePackId = activePack?.id ?? sound.custom.comboMusic.activePackId;
   const comboAsset = sound.custom.comboMusic.sourceAssetId
     ? assetMap[sound.custom.comboMusic.sourceAssetId]
-    : null;
+    : activePack
+      ? assetMap[activePack.sourceAssetId]
+      : null;
+  const setCustomEnabled = (customEnabled: boolean) => {
+    onChange({
+      customEnabled,
+      useHitEffectSound: customEnabled ? false : sound.useHitEffectSound,
+    });
+  };
+  const setSingleHitEnabled = (enabled: boolean) => {
+    updateCustom({
+      ...sound.custom,
+      comboMusic: {
+        ...sound.custom.comboMusic,
+        enabled: enabled ? false : sound.custom.comboMusic.enabled,
+      },
+      hitFeedback: {
+        ...sound.custom.hitFeedback,
+        enabled,
+        playWithComboMusic: false,
+      },
+    });
+  };
+  const setComboEnabled = (enabled: boolean) => {
+    updateCustom({
+      ...sound.custom,
+      comboMusic: {
+        ...sound.custom.comboMusic,
+        enabled,
+        mode: "manualClips",
+        overflowBehavior: "restart",
+      },
+      hitFeedback: {
+        ...sound.custom.hitFeedback,
+        enabled: enabled ? false : sound.custom.hitFeedback.enabled,
+        playWithComboMusic: false,
+      },
+    });
+  };
+  const selectPack = (packId: string) => {
+    const pack = sound.custom.comboMusic.packs.find((item) => item.id === packId);
+    if (!pack) {
+      return;
+    }
+
+    onChange({
+      custom: {
+        ...sound.custom,
+        comboMusic: {
+          ...sound.custom.comboMusic,
+          activePackId: pack.id,
+          clips: pack.clips,
+          enabled: true,
+          mode: "manualClips",
+          overflowBehavior: "restart",
+          sourceAssetId: pack.sourceAssetId,
+        },
+        hitFeedback: {
+          ...sound.custom.hitFeedback,
+          enabled: false,
+          playWithComboMusic: false,
+        },
+      },
+      customEnabled: true,
+      enabled: true,
+    });
+    setConfirmingDeleteId(null);
+  };
+  const deletePack = (packId: string) => {
+    if (confirmingDeleteId !== packId) {
+      setConfirmingDeleteId(packId);
+      return;
+    }
+
+    const packs = sound.custom.comboMusic.packs.filter((pack) => pack.id !== packId);
+    const nextActivePack = activePackId === packId ? (packs[0] ?? null) : (packs.find((pack) => pack.id === activePackId) ?? null);
+
+    updateCustom({
+      ...sound.custom,
+      comboMusic: {
+        ...sound.custom.comboMusic,
+        activePackId: nextActivePack?.id ?? null,
+        clips: nextActivePack?.clips ?? [],
+        enabled: nextActivePack ? sound.custom.comboMusic.enabled : false,
+        packs,
+        sourceAssetId: nextActivePack?.sourceAssetId ?? null,
+      },
+    });
+    setConfirmingDeleteId(null);
+  };
+  const deleteCurrentComboAsset = () => {
+    const sourceAssetId = sound.custom.comboMusic.sourceAssetId;
+    if (!sourceAssetId) {
+      return;
+    }
+
+    const confirmId = `asset:${sourceAssetId}`;
+    if (confirmingDeleteId !== confirmId) {
+      setConfirmingDeleteId(confirmId);
+      return;
+    }
+
+    const packs = sound.custom.comboMusic.packs.filter((pack) => pack.sourceAssetId !== sourceAssetId);
+    const nextActivePack = packs[0] ?? null;
+
+    updateCustom({
+      ...sound.custom,
+      comboMusic: {
+        ...sound.custom.comboMusic,
+        activePackId: nextActivePack?.id ?? null,
+        clips: nextActivePack?.clips ?? [],
+        enabled: Boolean(nextActivePack) && sound.custom.comboMusic.enabled,
+        packs,
+        sourceAssetId: nextActivePack?.sourceAssetId ?? null,
+      },
+    });
+    setConfirmingDeleteId(null);
+  };
+  const editCurrentComboAsset = () => {
+    const sourceAssetId = sound.custom.comboMusic.sourceAssetId;
+    if (!sourceAssetId) {
+      return;
+    }
+
+    const packId = activePack?.sourceAssetId === sourceAssetId ? `?packId=${activePack.id}` : "";
+    setConfirmingDeleteId(null);
+    navigate(`/settings/sounds/editor/${sourceAssetId}${packId}`);
+  };
+  const editShortClip = (target: "hit" | "miss", clip: SoundClipRef | null) => {
+    if (!clip) {
+      return;
+    }
+
+    setConfirmingDeleteId(null);
+    navigate(`/settings/sounds/editor/${clip.assetId}?target=${target}`);
+  };
 
   return (
     <div className="grid gap-5">
@@ -172,51 +321,52 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
         onChange={(enabled) => onChange({ enabled })}
       />
       <ToggleField
-        label={t("fields.customSoundEnabled", { defaultValue: "自定义音频" })}
+        label="默认音效"
+        description="使用系统内置命中反馈。只有默认音效开启时，击中特效音效才可使用。"
+        checked={!sound.customEnabled}
+        disabled={!sound.enabled}
+        onChange={(checked) => setCustomEnabled(!checked)}
+      />
+      <ToggleField
+        label={t("fields.customSoundEnabled", { defaultValue: "自定义音效" })}
         description={t("fields.customSoundEnabledDescription", {
-          defaultValue: "启用命中短反馈、连击音乐和未命中反馈的自定义配置。",
+          defaultValue: "使用自定义命中、连续命中和未命中音效。",
         })}
         checked={sound.customEnabled}
         disabled={!sound.enabled}
-        onChange={(customEnabled) => onChange({ customEnabled })}
+        onChange={setCustomEnabled}
       />
-      <ToggleField
-        label={t("fields.useHitEffectSound", { defaultValue: "使用击中特效音效" })}
-        description={t("fields.useHitEffectSoundDescription", {
-          defaultValue: "未启用自定义音频时，击中特效可播放自身音效。",
-        })}
-        checked={sound.useHitEffectSound}
-        disabled={!sound.enabled || sound.customEnabled}
-        onChange={(useHitEffectSound) => onChange({ useHitEffectSound })}
-      />
+      {!sound.customEnabled && (
+        <ToggleField
+          label={t("fields.useHitEffectSound", { defaultValue: "使用击中特效音效" })}
+          description={t("fields.useHitEffectSoundDescription", {
+            defaultValue: "默认音效开启时，击中特效可播放对应的效果音。",
+          })}
+          checked={sound.useHitEffectSound}
+          disabled={!sound.enabled}
+          onChange={(useHitEffectSound) => onChange({ useHitEffectSound })}
+        />
+      )}
 
       {sound.customEnabled && (
         <div className="grid gap-5">
           <PanelBlock
             icon={Volume2}
-            title="命中反馈"
-            description="普通命中的短音效。启用连击音乐后建议关闭，避免声音叠在一起。"
+            title="击中音效"
+            description="击中音效支持单次击中短音效，也可以选择连续击中整合包。"
             disabled={!sound.enabled}
           >
             <ToggleField
-              label="播放普通命中音效"
-              description="关闭后，命中主要由连击音乐承担反馈。"
+              label="单次击中音效"
+              description="每次命中播放一个短音效。"
               checked={sound.custom.hitFeedback.enabled}
               disabled={!sound.enabled}
-              onChange={(enabled) =>
-                updateCustom({
-                  ...sound.custom,
-                  hitFeedback: {
-                    ...sound.custom.hitFeedback,
-                    enabled,
-                  },
-                })
-              }
+              onChange={setSingleHitEnabled}
             />
             <SegmentedControl<HitFeedbackSource>
               disabled={!sound.enabled || !sound.custom.hitFeedback.enabled}
               options={[
-                { label: "默认命中音效", value: "default" },
+                { label: "默认", value: "default" },
                 { label: "自定义短音效", value: "custom" },
               ]}
               value={sound.custom.hitFeedback.source}
@@ -245,151 +395,145 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
                       },
                     })
                   }
+                  onEdit={() => editShortClip("hit", sound.custom.hitFeedback.customClip)}
                   onPlay={(clip) => void playSoundClip(clip)}
                 />
                 <UploadButton
                   disabled={!sound.enabled || !sound.custom.hitFeedback.enabled}
-                  label="上传命中短音效"
+                  label="上传单次击中音效"
                   onFile={(file) => void uploadShortClip(file, "hit")}
                 />
                 {typeof uploadProgress.hit_short === "number" && <ProgressBar value={uploadProgress.hit_short} />}
               </div>
             )}
-            <ToggleField
-              label="连击音乐播放时叠加命中音效"
-              description="默认关闭；开启后每次命中仍会播放普通命中短音效。"
-              checked={sound.custom.hitFeedback.playWithComboMusic}
-              disabled={!sound.enabled || !sound.custom.hitFeedback.enabled}
-              onChange={(playWithComboMusic) =>
-                updateCustom({
-                  ...sound.custom,
-                  hitFeedback: {
-                    ...sound.custom.hitFeedback,
-                    playWithComboMusic,
-                  },
-                })
-              }
-            />
           </PanelBlock>
 
           <PanelBlock
             icon={Music2}
-            title="连击音乐"
-            description="连续命中时播放音乐。未命中会中断连击，并按规则重置、暂停或停止音乐。"
+            title="连续击中音效"
+            description="选择已经编辑好的整合包使用；添加或编辑整合包会进入音效编辑页面。"
             disabled={!sound.enabled}
           >
             <ToggleField
-              label="启用连击音乐"
-              description="开启后，连续命中会驱动完整音乐或手动拆分的第 n 击片段。"
+              label="启用连续击中音效"
+              description="开启后，连续命中会按第 1 段、第 2 段到第 n 段播放。"
               checked={sound.custom.comboMusic.enabled}
               disabled={!sound.enabled}
-              onChange={(enabled) =>
-                updateCustom({
-                  ...sound.custom,
-                  comboMusic: {
-                    ...sound.custom.comboMusic,
-                    enabled,
-                  },
-                })
-              }
+              onChange={setComboEnabled}
             />
             <div className="grid gap-3">
-              <AssetRow asset={comboAsset} emptyLabel="还没有上传连击音乐" />
+              {sound.custom.comboMusic.packs.length === 0 && (
+                <ComboAssetCard
+                  asset={comboAsset}
+                  confirmDeleteId={sound.custom.comboMusic.sourceAssetId ? `asset:${sound.custom.comboMusic.sourceAssetId}` : null}
+                  emptyLabel="还没有选择连续击中整合包"
+                  isConfirmingDelete={
+                    Boolean(sound.custom.comboMusic.sourceAssetId) &&
+                    confirmingDeleteId === `asset:${sound.custom.comboMusic.sourceAssetId}`
+                  }
+                  onDelete={deleteCurrentComboAsset}
+                  onEdit={editCurrentComboAsset}
+                />
+              )}
+              {sound.custom.comboMusic.packs.length > 0 && (
+                <div className="grid gap-2">
+                  {sound.custom.comboMusic.packs.map((pack) => (
+                    <div
+                      key={pack.id}
+                      className={cn(
+                        "grid min-h-12 gap-3 rounded-xl border p-3",
+                        pack.id === activePackId
+                          ? "border-primary/35 bg-primary/10"
+                          : "border-white/10 bg-black/20",
+                      )}
+                    >
+                      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,auto)] xl:items-center">
+                        <button type="button" className="min-w-0 text-left" onClick={() => selectPack(pack.id)}>
+                          <div className="flex items-center gap-2 text-sm font-medium">
+                            {pack.id === activePackId && <CheckCircle2 className="h-4 w-4 text-primary" />}
+                            <span className="truncate">{pack.name}</span>
+                          </div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            {pack.clips.length} 段音效
+                          </div>
+                        </button>
+                        <div className="grid grid-cols-3 gap-2">
+                          <Button
+                            type="button"
+                            variant={pack.id === activePackId ? "default" : "outline"}
+                            className="min-w-0 px-2"
+                            onClick={() => selectPack(pack.id)}
+                            title={pack.id === activePackId ? "当前整合包" : "切换到此整合包"}
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                            {pack.id === activePackId ? "已选中" : "选中"}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={!sound.enabled}
+                            onClick={() => {
+                              setConfirmingDeleteId(null);
+                              navigate(`/settings/sounds/editor/${pack.sourceAssetId}?packId=${pack.id}`);
+                            }}
+                            title="编辑整合包"
+                            className="min-w-0 px-2"
+                          >
+                            <Pencil className="h-4 w-4" />
+                            编辑
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onBlur={() => {
+                              if (confirmingDeleteId === pack.id) {
+                                setConfirmingDeleteId(null);
+                              }
+                            }}
+                            onClick={() => deletePack(pack.id)}
+                            title={confirmingDeleteId === pack.id ? "再次点击确认删除" : "删除整合包"}
+                            className={cn(
+                              "min-w-0 px-2",
+                              confirmingDeleteId === pack.id && "border-red-400/40 bg-red-500/12 text-red-100 hover:bg-red-500/18",
+                            )}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            {confirmingDeleteId === pack.id ? "确认删除" : "删除"}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="flex flex-wrap gap-2">
                 <UploadButton
                   disabled={!sound.enabled}
-                  label={comboAsset ? "替换完整音乐" : "上传完整音乐"}
+                  label="添加音效"
                   onFile={(file) => void uploadComboTrack(file)}
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={!sound.enabled || !sound.custom.comboMusic.sourceAssetId}
-                  onClick={() => navigate(`/settings/sounds/editor/${sound.custom.comboMusic.sourceAssetId}`)}
-                >
-                  <ListMusic className="h-4 w-4" />
-                  编辑连击片段
-                </Button>
               </div>
               {typeof uploadProgress.combo === "number" && <ProgressBar value={uploadProgress.combo} />}
             </div>
-            <SegmentedControl<ComboMusicMode>
-              disabled={!sound.enabled || !sound.custom.comboMusic.enabled}
-              options={[
-                { label: "完整音乐", value: "fullTrack" },
-                { label: "手动拆分片段", value: "manualClips" },
-              ]}
-              value={sound.custom.comboMusic.mode}
-              onChange={(mode) =>
-                updateCustom({
-                  ...sound.custom,
-                  comboMusic: {
-                    ...sound.custom.comboMusic,
-                    mode,
-                  },
-                })
-              }
-            />
             <div className="grid gap-3 md:grid-cols-2">
-              <SelectField<ComboBreakBehavior>
+              <ToggleField
+                label="未命中时是否重头播放"
+                description="开启后未命中会清空连击进度；关闭后会暂停并从暂停处继续。"
+                checked={sound.custom.comboMusic.breakBehavior === "restart"}
                 disabled={!sound.enabled || !sound.custom.comboMusic.enabled}
-                label="未命中时"
-                options={[
-                  { label: "重头开始", value: "restart" },
-                  { label: "暂停并保留进度", value: "pause" },
-                  { label: "停止并静音", value: "stop" },
-                ]}
-                value={sound.custom.comboMusic.breakBehavior}
-                onChange={(breakBehavior) =>
+                onChange={(restartOnMiss) =>
                   updateCustom({
                     ...sound.custom,
                     comboMusic: {
                       ...sound.custom.comboMusic,
-                      breakBehavior,
-                    },
-                  })
-                }
-              />
-              <SelectField<ComboResumeBehavior>
-                disabled={!sound.enabled || !sound.custom.comboMusic.enabled}
-                label="连击恢复时"
-                options={[
-                  { label: "从头播放", value: "fromStart" },
-                  { label: "从暂停位置继续", value: "fromPausedPosition" },
-                ]}
-                value={sound.custom.comboMusic.resumeBehavior}
-                onChange={(resumeBehavior) =>
-                  updateCustom({
-                    ...sound.custom,
-                    comboMusic: {
-                      ...sound.custom.comboMusic,
-                      resumeBehavior,
-                    },
-                  })
-                }
-              />
-              <SelectField<ComboOverflowBehavior>
-                disabled={!sound.enabled || !sound.custom.comboMusic.enabled || sound.custom.comboMusic.mode !== "manualClips"}
-                label="超过最后片段"
-                options={[
-                  { label: "沿用最后片段", value: "holdLast" },
-                  { label: "循环片段", value: "loop" },
-                  { label: "继续完整音乐", value: "continueFullTrack" },
-                  { label: "不播放", value: "silent" },
-                ]}
-                value={sound.custom.comboMusic.overflowBehavior}
-                onChange={(overflowBehavior) =>
-                  updateCustom({
-                    ...sound.custom,
-                    comboMusic: {
-                      ...sound.custom.comboMusic,
-                      overflowBehavior,
+                      breakBehavior: restartOnMiss ? "restart" : "pause",
+                      resumeBehavior: restartOnMiss ? "fromStart" : "fromPausedPosition",
                     },
                   })
                 }
               />
               <label className="grid gap-2 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm">
-                <span className="text-xs text-muted-foreground">连击音乐音量</span>
+                <span className="text-xs text-muted-foreground">连续击中音量</span>
                 <input
                   type="range"
                   min={0}
@@ -411,23 +555,20 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
               </label>
             </div>
             <p className="rounded-2xl border border-primary/15 bg-primary/8 p-4 text-sm text-muted-foreground">
-              {sound.custom.comboMusic.mode === "fullTrack"
-                ? "完整音乐模式下，第一次命中开始播放，后续连续命中不会重新触发，音乐会自然推进。"
-                : `手动拆分模式下，当前有 ${sound.custom.comboMusic.clips.length} 个连击片段，连续命中会按第 1 击、第 2 击到第 n 击播放。`}
+              当前整合包有 {sound.custom.comboMusic.clips.length} 段音效，连续命中会按第 1 段、第 2 段到第 n 段播放；超过最后一段后默认从第 1 段重新开始。
             </p>
           </PanelBlock>
 
           <PanelBlock
             icon={XCircle}
-            title="未命中反馈"
-            description="击不中时播放一个短提示音，也可以完全关闭。未命中不再支持连续音效。"
+            title="非击中音效"
+            description="非击中音效只支持单次短音效，不支持连续击中整合包。"
             disabled={!sound.enabled}
           >
             <SegmentedControl<MissFeedbackMode>
               disabled={!sound.enabled}
               options={[
                 { label: "不播放", value: "none" },
-                { label: "默认提示", value: "default" },
                 { label: "自定义短音效", value: "custom" },
               ]}
               value={sound.custom.missFeedback.mode}
@@ -456,6 +597,7 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
                       },
                     })
                   }
+                  onEdit={() => editShortClip("miss", sound.custom.missFeedback.customClip)}
                   onPlay={(clip) => void playSoundClip(clip, sound.custom.missFeedback.volume)}
                 />
                 <UploadButton
@@ -511,12 +653,14 @@ function ClipRow({
   clip,
   emptyLabel,
   onClear,
+  onEdit,
   onPlay,
 }: {
   assetMap: AssetMap;
   clip: SoundClipRef | null;
   emptyLabel: string;
   onClear: () => void;
+  onEdit?: () => void;
   onPlay: (clip: SoundClipRef) => void;
 }) {
   const asset = clip ? assetMap[clip.assetId] : null;
@@ -540,6 +684,11 @@ function ClipRow({
           <Button type="button" variant="outline" onClick={() => onPlay(clip)} title="播放">
             <Play className="h-4 w-4" />
           </Button>
+          {onEdit && (
+            <Button type="button" variant="outline" onClick={onEdit} title="编辑音效">
+              <Pencil className="h-4 w-4" />
+            </Button>
+          )}
           <Button type="button" variant="outline" onClick={onClear} title="移除">
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -549,14 +698,53 @@ function ClipRow({
   );
 }
 
-function AssetRow({ asset, emptyLabel }: { asset?: SoundAsset | null; emptyLabel: string }) {
+function ComboAssetCard({
+  asset,
+  confirmDeleteId,
+  emptyLabel,
+  isConfirmingDelete,
+  onDelete,
+  onEdit,
+}: {
+  asset?: SoundAsset | null;
+  confirmDeleteId: string | null;
+  emptyLabel: string;
+  isConfirmingDelete: boolean;
+  onDelete: () => void;
+  onEdit: () => void;
+}) {
   return (
-    <div className="flex min-h-12 items-center gap-3 rounded-xl border border-white/10 bg-black/20 p-3">
-      <Music2 className="h-4 w-4 text-primary" />
-      <div className="min-w-0">
-        <div className="truncate text-sm font-medium">{asset?.name ?? emptyLabel}</div>
-        {asset && <div className="mt-1 text-xs text-muted-foreground">{formatMs(asset.durationMs)}</div>}
+    <div className="grid min-h-12 gap-3 rounded-xl border border-white/10 bg-black/20 p-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+      <div className="flex min-w-0 items-center gap-3">
+        <Music2 className="h-4 w-4 shrink-0 text-primary" />
+        <div className="min-w-0">
+          <div className="truncate text-sm font-medium">{asset?.name ?? emptyLabel}</div>
+          {asset && <div className="mt-1 text-xs text-muted-foreground">{formatMs(asset.durationMs)}</div>}
+        </div>
       </div>
+      {asset && (
+        <div className="flex flex-wrap gap-2 lg:justify-end">
+          <Button type="button" variant="outline" onClick={onEdit} title="编辑整合包" className="min-w-20">
+            <Pencil className="h-4 w-4" />
+            编辑
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!confirmDeleteId}
+            onBlur={() => undefined}
+            onClick={onDelete}
+            title={isConfirmingDelete ? "再次点击确认删除" : "删除整合包"}
+            className={cn(
+              "min-w-20",
+              isConfirmingDelete && "border-red-400/40 bg-red-500/12 text-red-100 hover:bg-red-500/18",
+            )}
+          >
+            <Trash2 className="h-4 w-4" />
+            {isConfirmingDelete ? "确认删除" : "删除"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -570,16 +758,16 @@ function UploadButton({
   label: string;
   onFile: (file: File) => void;
 }) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
   return (
-    <label
-      className={cn(
-        "inline-flex h-9 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-md border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium transition-all hover:border-white/20 hover:bg-white/[0.06]",
-        disabled && "pointer-events-none opacity-50",
-      )}
-    >
-      <Upload className="h-4 w-4" />
-      {label}
+    <>
+      <Button type="button" variant="outline" disabled={disabled} onClick={() => inputRef.current?.click()}>
+        <Upload className="h-4 w-4" />
+        {label}
+      </Button>
       <input
+        ref={inputRef}
         type="file"
         accept=".mp3,.wav,audio/mpeg,audio/wav"
         disabled={disabled}
@@ -590,9 +778,9 @@ function UploadButton({
             onFile(file);
           }
         }}
-        className="sr-only"
+        className="hidden"
       />
-    </label>
+    </>
   );
 }
 
@@ -630,38 +818,6 @@ function SegmentedControl<T extends string>({
   );
 }
 
-function SelectField<T extends string>({
-  disabled = false,
-  label,
-  onChange,
-  options,
-  value,
-}: {
-  disabled?: boolean;
-  label: string;
-  onChange: (value: T) => void;
-  options: Array<{ label: string; value: T }>;
-  value: T;
-}) {
-  return (
-    <label className={cn("grid gap-2 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm", disabled && "opacity-55")}>
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <select
-        value={value}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.value as T)}
-        className="h-10 rounded-xl border border-white/10 bg-black/20 px-3 text-sm text-foreground outline-none disabled:cursor-not-allowed"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
 function ProgressBar({ value }: { value: number }) {
   return (
     <div className="h-2 overflow-hidden rounded-full bg-white/10">
@@ -675,6 +831,7 @@ function collectAssetIds(sound: SoundSettings) {
     sound.custom.hitFeedback.customClip?.assetId,
     sound.custom.missFeedback.customClip?.assetId,
     sound.custom.comboMusic.sourceAssetId,
+    ...sound.custom.comboMusic.packs.map((pack) => pack.sourceAssetId),
   ].filter((id): id is string => Boolean(id));
 }
 

@@ -22,6 +22,7 @@ import { defaultSettings, type HitEffectType, useSettingsStore } from "@/stores/
 import { cn } from "@/lib/utils";
 
 type SettingsSection = "crosshair" | "aimAssist" | "target" | "duration" | "sensitivity" | "hit" | "sound" | "fps";
+const activeSettingsSectionKey = "aim-trainer-active-settings-section";
 
 interface SettingsPanelProps {
   className?: string;
@@ -78,7 +79,7 @@ const sections: Array<{
 
 export function SettingsPanel({ className, surface = "page" }: SettingsPanelProps) {
   const { t } = useTranslation("settings");
-  const [activeSection, setActiveSection] = useState<SettingsSection>("crosshair");
+  const [activeSection, setActiveSection] = useState<SettingsSection>(() => readActiveSection());
   const [isConfirmingReset, setIsConfirmingReset] = useState(false);
   const aimAssist = useSettingsStore((state) => state.aimAssist);
   const crosshair = useSettingsStore((state) => state.crosshair);
@@ -153,7 +154,10 @@ export function SettingsPanel({ className, surface = "page" }: SettingsPanelProp
                   key={section.id}
                   type="button"
                   disabled={section.disabled}
-                  onClick={() => setActiveSection(section.id)}
+                  onClick={() => {
+                    setActiveSection(section.id);
+                    saveActiveSection(section.id);
+                  }}
                   className={cn(
                     "group flex min-w-0 w-full items-center gap-3 rounded-2xl border p-3 text-left transition-all",
                     isActive
@@ -532,4 +536,21 @@ export function SettingsPanel({ className, surface = "page" }: SettingsPanelProp
       </div>
     </section>
   );
+}
+
+function readActiveSection(): SettingsSection {
+  if (typeof window === "undefined") {
+    return "crosshair";
+  }
+
+  const stored = window.localStorage.getItem(activeSettingsSectionKey);
+  return sections.some((section) => section.id === stored) ? (stored as SettingsSection) : "crosshair";
+}
+
+function saveActiveSection(section: SettingsSection) {
+  try {
+    window.localStorage.setItem(activeSettingsSectionKey, section);
+  } catch {
+    // Menu memory is a convenience and should not block settings.
+  }
 }

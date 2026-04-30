@@ -645,17 +645,6 @@ export function useGrid3x3Training() {
     [getAudioContext, playAudioFile, playTone],
   );
 
-  const playDefaultMissFeedback = useCallback(() => {
-    const context = getAudioContext();
-    if (!context) {
-      return;
-    }
-
-    const now = context.currentTime;
-    playTone(context, { at: now, duration: 0.05, frequency: 220, gain: 0.13, type: "sawtooth" });
-    playTone(context, { at: now + 0.035, duration: 0.06, frequency: 160, gain: 0.09, type: "triangle" });
-  }, [getAudioContext, playTone]);
-
   const stopActiveComboClip = useCallback(() => {
     const activeClip = activeComboClipRef.current;
     if (!activeClip) {
@@ -712,7 +701,7 @@ export function useGrid3x3Training() {
       return null;
     }
 
-    if (overflowBehavior === "loop") {
+    if (overflowBehavior === "loop" || overflowBehavior === "restart") {
       return sortedClips[(comboCount - 1) % sortedClips.length] ?? null;
     }
 
@@ -853,11 +842,8 @@ export function useGrid3x3Training() {
 
     if (missFeedback.mode === "custom" && missFeedback.customClip) {
       playSoundClip(missFeedback.customClip, missFeedback.volume).catch(() => undefined);
-      return;
     }
-
-    playDefaultMissFeedback();
-  }, [playDefaultMissFeedback, stopActiveComboClip, stopComboTrack]);
+  }, [stopActiveComboClip, stopComboTrack]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

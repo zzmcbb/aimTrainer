@@ -9,11 +9,11 @@ export interface SoundClipRef {
 }
 
 export type HitFeedbackSource = "default" | "custom";
-export type MissFeedbackMode = "none" | "default" | "custom";
+export type MissFeedbackMode = "none" | "custom";
 export type ComboMusicMode = "fullTrack" | "manualClips";
-export type ComboBreakBehavior = "restart" | "pause" | "stop";
+export type ComboBreakBehavior = "pause" | "restart" | "stop";
 export type ComboResumeBehavior = "fromStart" | "fromPausedPosition";
-export type ComboOverflowBehavior = "holdLast" | "loop" | "continueFullTrack" | "silent";
+export type ComboOverflowBehavior = "restart" | "holdLast" | "loop" | "continueFullTrack" | "silent";
 
 export interface HitFeedbackSettings {
   customClip: SoundClipRef | null;
@@ -30,12 +30,22 @@ export interface ComboMusicClip {
   startMs: number;
 }
 
+export interface ComboSoundPack {
+  clips: ComboMusicClip[];
+  id: string;
+  name: string;
+  sourceAssetId: string;
+  updatedAt: number;
+}
+
 export interface ComboMusicSettings {
+  activePackId: string | null;
   breakBehavior: ComboBreakBehavior;
   clips: ComboMusicClip[];
   enabled: boolean;
   mode: ComboMusicMode;
   overflowBehavior: ComboOverflowBehavior;
+  packs: ComboSoundPack[];
   resumeBehavior: ComboResumeBehavior;
   sourceAssetId: string | null;
   volume: number;
@@ -88,11 +98,13 @@ const validMimeTypes = new Set(["audio/mpeg", "audio/mp3", "audio/wav", "audio/x
 export function createDefaultCustomSoundSettings(): CustomSoundSettings {
   return {
     comboMusic: {
+      activePackId: null,
       breakBehavior: "restart",
       clips: [],
       enabled: false,
       mode: "manualClips",
-      overflowBehavior: "holdLast",
+      overflowBehavior: "restart",
+      packs: [],
       resumeBehavior: "fromStart",
       sourceAssetId: null,
       volume: 0.72,
@@ -105,7 +117,7 @@ export function createDefaultCustomSoundSettings(): CustomSoundSettings {
     },
     missFeedback: {
       customClip: null,
-      mode: "default",
+      mode: "none",
       volume: 0.72,
     },
   };

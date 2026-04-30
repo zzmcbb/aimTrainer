@@ -5,6 +5,7 @@ import {
   type ComboMusicMode,
   type ComboOverflowBehavior,
   type ComboResumeBehavior,
+  type ComboSoundPack,
   createDefaultCustomSoundSettings,
   type CustomSoundSettings,
   type HitFeedbackSource,
@@ -173,7 +174,7 @@ function readHitFeedbackSource(value: unknown, fallback: HitFeedbackSource): Hit
 }
 
 function readMissFeedbackMode(value: unknown, fallback: MissFeedbackMode): MissFeedbackMode {
-  return value === "none" || value === "default" || value === "custom" ? value : fallback;
+  return value === "none" || value === "custom" ? value : fallback;
 }
 
 function readComboMusicMode(value: unknown, fallback: ComboMusicMode): ComboMusicMode {
@@ -189,7 +190,7 @@ function readComboResumeBehavior(value: unknown, fallback: ComboResumeBehavior):
 }
 
 function readComboOverflowBehavior(value: unknown, fallback: ComboOverflowBehavior): ComboOverflowBehavior {
-  return value === "holdLast" || value === "loop" || value === "continueFullTrack" || value === "silent"
+  return value === "restart" || value === "holdLast" || value === "loop" || value === "continueFullTrack" || value === "silent"
     ? value
     : fallback;
 }
@@ -216,6 +217,32 @@ function readComboMusicClip(value: unknown, fallbackIndex: number): ComboMusicCl
     index,
     note: readString(item.note),
     startMs,
+  };
+}
+
+function readComboSoundPack(value: unknown): ComboSoundPack | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const item = value as Partial<ComboSoundPack> & Record<string, unknown>;
+  if (typeof item.id !== "string" || typeof item.sourceAssetId !== "string") {
+    return null;
+  }
+
+  const clips = Array.isArray(item.clips)
+    ? item.clips
+        .map((clip, index) => readComboMusicClip(clip, index + 1))
+        .filter((clip): clip is ComboMusicClip => Boolean(clip))
+        .sort((first, second) => first.index - second.index)
+    : [];
+
+  return {
+    clips,
+    id: item.id,
+    name: readString(item.name, `连击整合包 ${clips.length || 1}`),
+    sourceAssetId: item.sourceAssetId,
+    updatedAt: readNumber(item.updatedAt, Date.now(), 0, Number.MAX_SAFE_INTEGER),
   };
 }
 
@@ -267,27 +294,39 @@ function readCustomSoundSettings(value: unknown): CustomSoundSettings {
       );
     })
     .filter((item: ComboMusicClip | null): item is ComboMusicClip => Boolean(item));
+  const comboPacks = Array.isArray(comboMusic.packs)
+    ? comboMusic.packs.map(readComboSoundPack).filter((item): item is ComboSoundPack => Boolean(item))
+    : [];
+  const activePackId =
+    typeof comboMusic.activePackId === "string" && comboPacks.some((pack) => pack.id === comboMusic.activePackId)
+      ? comboMusic.activePackId
+      : comboPacks.find((pack) => pack.sourceAssetId === legacySourceAssetId)?.id ?? null;
+  const activePack = activePackId ? (comboPacks.find((pack) => pack.id === activePackId) ?? null) : null;
+  const comboEnabled = readBoolean(comboMusic.enabled, legacyComboClips.length > 0 ? true : fallback.comboMusic.enabled);
+  const storedComboClips = Array.isArray(comboMusic.clips)
+    ? comboMusic.clips
+        .map((item, index) => readComboMusicClip(item, index + 1))
+        .filter((item): item is ComboMusicClip => Boolean(item))
+        .sort((first, second) => first.index - second.index)
+    : legacyComboClips;
 
   return {
     comboMusic: {
+      activePackId,
       breakBehavior: readComboBreakBehavior(comboMusic.breakBehavior, fallback.comboMusic.breakBehavior),
-      clips: Array.isArray(comboMusic.clips)
-        ? comboMusic.clips
-            .map((item, index) => readComboMusicClip(item, index + 1))
-            .filter((item): item is ComboMusicClip => Boolean(item))
-            .sort((first, second) => first.index - second.index)
-        : legacyComboClips,
-      enabled: readBoolean(comboMusic.enabled, legacyComboClips.length > 0 ? true : fallback.comboMusic.enabled),
-      mode: readComboMusicMode(comboMusic.mode, fallback.comboMusic.mode),
+      clips: activePack?.clips ?? storedComboClips,
+      enabled: comboEnabled,
+      mode: "manualClips",
       overflowBehavior: readComboOverflowBehavior(comboMusic.overflowBehavior, fallback.comboMusic.overflowBehavior),
+      packs: comboPacks,
       resumeBehavior: readComboResumeBehavior(comboMusic.resumeBehavior, fallback.comboMusic.resumeBehavior),
-      sourceAssetId: legacySourceAssetId,
+      sourceAssetId: activePack?.sourceAssetId ?? legacySourceAssetId,
       volume: readVolume(comboMusic.volume, fallback.comboMusic.volume),
     },
     hitFeedback: {
       customClip: readClipRef(hitFeedback.customClip) ?? readClipRef(legacyHit.singleClip) ?? fallback.hitFeedback.customClip,
-      enabled: readBoolean(hitFeedback.enabled, fallback.hitFeedback.enabled),
-      playWithComboMusic: readBoolean(hitFeedback.playWithComboMusic, fallback.hitFeedback.playWithComboMusic),
+      enabled: comboEnabled ? false : readBoolean(hitFeedback.enabled, fallback.hitFeedback.enabled),
+      playWithComboMusic: false,
       source: readHitFeedbackSource(hitFeedback.source, fallback.hitFeedback.source),
     },
     missFeedback: {
