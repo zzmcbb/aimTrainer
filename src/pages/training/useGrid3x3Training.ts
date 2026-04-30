@@ -6,7 +6,7 @@ import {
   createTrainingHistoryRecord,
   saveTrainingRecord,
 } from "@/pages/history/historyRecords";
-import { getSoundObjectUrl, playSoundClip } from "@/lib/soundEngine";
+import { getSoundObjectUrl, playSoundClip, type PlayingSoundClip } from "@/lib/soundEngine";
 import type { ComboMusicClip, SoundClipRef } from "@/lib/soundAssets";
 import { useSettingsStore } from "@/stores/settingsStore";
 
@@ -20,6 +20,7 @@ const crosshairSpreadMaxOffset = 10;
 const crosshairRecoveryEasing = "cubic-bezier(0.16, 1, 0.3, 1)";
 const overlayActionDelayMs = 450;
 const remainingUiUpdateIntervalMs = 100;
+const missFeedbackThrottleMs = 180;
 const logicTickRate = 240;
 const logicStepMs = 1000 / logicTickRate;
 const maxAccumulatedLogicMs = 250;
@@ -137,6 +138,9 @@ export function useGrid3x3Training() {
   const comboTrackAssetIdRef = useRef<string | null>(null);
   const comboPausedSecondsRef = useRef(0);
   const activeComboClipRef = useRef<{ audio: HTMLAudioElement; timerId: number | null } | null>(null);
+  const activeMissFeedbackRef = useRef<PlayingSoundClip | null>(null);
+  const missFeedbackPlaybackIdRef = useRef(0);
+  const lastMissFeedbackPlayedAtRef = useRef(Number.NEGATIVE_INFINITY);
   const fpsLimitRef = useRef(trainingSettings.fpsLimit);
   const lastRenderedAtRef = useRef(0);
   const sensitivityRef = useRef({
@@ -658,6 +662,12 @@ export function useGrid3x3Training() {
     activeComboClipRef.current = null;
   }, []);
 
+  const stopActiveMissFeedback = useCallback(() => {
+    missFeedbackPlaybackIdRef.current += 1;
+    activeMissFeedbackRef.current?.stop();
+    activeMissFeedbackRef.current = null;
+  }, []);
+
   const stopComboTrack = useCallback((resetToStart: boolean) => {
     const audio = comboTrackAudioRef.current;
     if (!audio) {
@@ -774,6 +784,8 @@ export function useGrid3x3Training() {
 
   const playHitSound = useCallback(
     (effectType: HitEffectKind) => {
+      stopActiveMissFeedback();
+
       const soundSettings = soundSettingsRef.current;
 
       if (!soundSettings.enabled) {
@@ -807,7 +819,7 @@ export function useGrid3x3Training() {
 
       playDefaultHitFeedback(effectType);
     },
-    [playComboMusic, playDefaultHitFeedback],
+    [playComboMusic, playDefaultHitFeedback, stopActiveMissFeedback],
   );
 
   const playMissSound = useCallback(() => {
@@ -841,9 +853,26 @@ export function useGrid3x3Training() {
     }
 
     if (missFeedback.mode === "custom" && missFeedback.customClip) {
-      playSoundClip(missFeedback.customClip, missFeedback.volume).catch(() => undefined);
+      const now = performance.now();
+      if (now - lastMissFeedbackPlayedAtRef.current < missFeedbackThrottleMs) {
+        return;
+      }
+
+      lastMissFeedbackPlayedAtRef.current = now;
+      stopActiveMissFeedback();
+      const playbackId = missFeedbackPlaybackIdRef.current;
+      playSoundClip(missFeedback.customClip, missFeedback.volume)
+        .then((playingClip) => {
+          if (playbackId !== missFeedbackPlaybackIdRef.current) {
+            playingClip?.stop();
+            return;
+          }
+
+          activeMissFeedbackRef.current = playingClip;
+        })
+        .catch(() => undefined);
     }
-  }, [stopActiveComboClip, stopComboTrack]);
+  }, [stopActiveComboClip, stopActiveMissFeedback, stopComboTrack]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -895,12 +924,13 @@ export function useGrid3x3Training() {
 
       audioContextRef.current?.close();
       audioContextRef.current = null;
+      stopActiveMissFeedback();
       stopActiveComboClip();
       comboTrackAudioRef.current?.pause();
       comboTrackAudioRef.current = null;
       comboTrackAssetIdRef.current = null;
     };
-  }, [clearCountdownTimer, stopActiveComboClip]);
+  }, [clearCountdownTimer, stopActiveComboClip, stopActiveMissFeedback]);
 
   useEffect(() => {
     const mount = mountRef.current;

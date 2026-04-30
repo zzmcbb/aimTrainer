@@ -13,7 +13,7 @@ type ShortClipTarget = "hit" | "miss";
 
 interface DraftClip extends ComboMusicClip {}
 
-const minClipMs = 40;
+const minClipMs = 20;
 const activeSettingsSectionKey = "aim-trainer-active-settings-section";
 
 export function SoundEditorPage() {
@@ -217,6 +217,25 @@ export function SoundEditorPage() {
 
     const maxScroll = container.scrollWidth - container.clientWidth;
     container.scrollLeft = maxScroll > 0 ? (nextRatio / 1000) * maxScroll : 0;
+  };
+
+  const centerClipInTrack = (clip: DraftClip) => {
+    if (!asset || !scrollContainerRef.current || !waveformRef.current) {
+      return;
+    }
+
+    const container = scrollContainerRef.current;
+    const waveformWidth = waveformRef.current.offsetWidth;
+    const maxScroll = container.scrollWidth - container.clientWidth;
+    if (maxScroll <= 0 || waveformWidth <= 0) {
+      setScrollRatio(0);
+      return;
+    }
+
+    const clipCenterRatio = Math.min(1, Math.max(0, (clip.startMs + clip.endMs) / 2 / asset.durationMs));
+    const targetScrollLeft = Math.min(maxScroll, Math.max(0, clipCenterRatio * waveformWidth - container.clientWidth / 2));
+    setScrollRatio(Math.round((targetScrollLeft / maxScroll) * 1000));
+    container.scrollTo({ left: targetScrollLeft, behavior: "smooth" });
   };
 
   const startCreate = (clientX: number) => {
@@ -481,6 +500,7 @@ export function SoundEditorPage() {
     stopAudio();
     setSelectedSavedId(clip.id);
     setDraft(clip);
+    centerClipInTrack(clip);
   };
 
   if (error) {
@@ -557,7 +577,7 @@ export function SoundEditorPage() {
                 <input
                   type="range"
                   min={1}
-                  max={8}
+                  max={16}
                   step={0.25}
                   value={zoom}
                   onChange={(event) => setZoom(Number(event.target.value))}
@@ -992,7 +1012,7 @@ function regionStyle(asset: SoundAsset, clip: DraftClip) {
 
   return {
     left: `${left}%`,
-    width: `${Math.max(0.8, width)}%`,
+    width: `${Math.max(0.4, width)}%`,
   };
 }
 

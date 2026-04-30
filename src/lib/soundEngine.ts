@@ -5,6 +5,10 @@ interface CachedBuffer {
   objectUrl: string;
 }
 
+export interface PlayingSoundClip {
+  stop: () => void;
+}
+
 const bufferCache = new Map<string, Promise<CachedBuffer>>();
 
 function getAudioContext() {
@@ -49,11 +53,11 @@ async function loadAudioBuffer(assetId: string) {
   return promise;
 }
 
-export async function playSoundClip(clip: SoundClipRef, volume = 0.72) {
+export async function playSoundClip(clip: SoundClipRef, volume = 0.72): Promise<PlayingSoundClip | null> {
   const { buffer } = await loadAudioBuffer(clip.assetId);
   const context = getAudioContext();
   if (!context) {
-    return;
+    return null;
   }
 
   if (context.state === "suspended") {
@@ -71,11 +75,38 @@ export async function playSoundClip(clip: SoundClipRef, volume = 0.72) {
   gainNode.gain.value = volume;
   source.connect(gainNode);
   gainNode.connect(context.destination);
-  source.start(0, startSeconds, duration);
-  source.onended = () => {
-    window.setTimeout(() => {
+  let isStopped = false;
+  let closeTimerId: number | null = null;
+  const closeContext = () => {
+    if (closeTimerId !== null) {
+      window.clearTimeout(closeTimerId);
+    }
+
+    closeTimerId = window.setTimeout(() => {
       context.close().catch(() => undefined);
     }, 120);
+  };
+
+  source.start(0, startSeconds, duration);
+  source.onended = () => {
+    isStopped = true;
+    closeContext();
+  };
+
+  return {
+    stop: () => {
+      if (isStopped) {
+        return;
+      }
+
+      isStopped = true;
+      try {
+        source.stop();
+      } catch {
+        // The source may have already ended between the guard and stop call.
+      }
+      closeContext();
+    },
   };
 }
 
