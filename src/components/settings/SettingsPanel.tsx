@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ColorField, RangeField, ToggleField } from "@/components/settings/SettingsFields";
 import { SettingsPreview } from "@/components/settings/SettingsPreview";
+import { SoundSettingsPanel } from "@/components/settings/SoundSettingsPanel";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/i18n";
 import { defaultSettings, type HitEffectType, useSettingsStore } from "@/stores/settingsStore";
@@ -458,40 +459,7 @@ export function SettingsPanel({ className, surface = "page" }: SettingsPanelProp
             )}
 
             {activeSection === "sound" && (
-              <div className="grid gap-5">
-              <ToggleField
-                label={t("fields.soundEnabled", { defaultValue: "音效" })}
-                description={t("fields.soundEnabledDescription", {
-                  defaultValue: "命中小球时播放默认的清脆点击音效，默认开启。",
-                })}
-                checked={sound.enabled}
-                onChange={(enabled) => setSound({ enabled })}
-              />
-              <ToggleField
-                label={t("fields.customSoundEnabled", { defaultValue: "自定义音效" })}
-                description={t("fields.customSoundEnabledDescription", {
-                  defaultValue: "使用更短促的电子音替代默认命中音效，默认关闭。",
-                })}
-                checked={sound.customEnabled}
-                disabled={!sound.enabled}
-                onChange={(customEnabled) => setSound({ customEnabled })}
-              />
-              <ToggleField
-                label={t("fields.useHitEffectSound", { defaultValue: "使用击中特效音效" })}
-                description={t("fields.useHitEffectSoundDescription", {
-                  defaultValue: "开启击中特效时，使用所选特效对应的音效，默认开启。",
-                })}
-                checked={sound.useHitEffectSound}
-                disabled={!sound.enabled}
-                onChange={(useHitEffectSound) => setSound({ useHitEffectSound })}
-              />
-              <p className="rounded-2xl border border-primary/15 bg-primary/8 p-4 text-sm text-muted-foreground">
-                {t("messages.soundNote", {
-                  defaultValue:
-                    "默认音效为短促玻璃点击；自定义音效为更轻的电子提示音。开启击中特效音效后，气球、爆炸、核弹等特效会使用各自的声音。",
-                })}
-              </p>
-              </div>
+              <SoundSettingsPanel sound={sound} onChange={setSound} />
             )}
 
             {activeSection === "hit" && (

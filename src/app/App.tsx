@@ -14,6 +14,9 @@ const TrainingPage = lazy(() =>
 const SettingsPage = lazy(() =>
   import("@/pages/settings").then((module) => ({ default: module.SettingsPage })),
 );
+const SoundEditorPage = lazy(() =>
+  import("@/pages/settings/SoundEditorPage").then((module) => ({ default: module.SoundEditorPage })),
+);
 
 export function App() {
   const location = useLocation();
@@ -26,6 +29,7 @@ export function App() {
           <Route path="/modes" element={<ModeSelectionPage />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/settings/sounds/editor/:assetId" element={<SoundEditorPage />} />
           <Route path="/training/grid-3x3" element={<TrainingPage />} />
         </Routes>
       </div>

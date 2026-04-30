@@ -1,4 +1,16 @@
 import { create } from "zustand";
+import {
+  type ComboBreakBehavior,
+  type ComboMusicClip,
+  type ComboMusicMode,
+  type ComboOverflowBehavior,
+  type ComboResumeBehavior,
+  createDefaultCustomSoundSettings,
+  type CustomSoundSettings,
+  type HitFeedbackSource,
+  type MissFeedbackMode,
+  type SoundClipRef,
+} from "@/lib/soundAssets";
 
 export type SupportedLanguage = "zh-CN" | "en-US";
 export type LanguagePreference = SupportedLanguage | "system";
@@ -33,6 +45,7 @@ export interface HitEffectSettings {
 }
 
 export interface SoundSettings {
+  custom: CustomSoundSettings;
   customEnabled: boolean;
   enabled: boolean;
   useHitEffectSound: boolean;
@@ -94,6 +107,7 @@ export const defaultSettings: PersistedSettings = {
   },
   language: "system",
   sound: {
+    custom: createDefaultCustomSoundSettings(),
     customEnabled: false,
     enabled: true,
     useHitEffectSound: true,
@@ -128,6 +142,161 @@ function readColor(value: unknown, fallback: string) {
 
 function readBoolean(value: unknown, fallback: boolean) {
   return typeof value === "boolean" ? value : fallback;
+}
+
+function readString(value: unknown, fallback = "") {
+  return typeof value === "string" ? value : fallback;
+}
+
+function readClipRef(value: unknown): SoundClipRef | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const clip = value as Partial<SoundClipRef>;
+  if (typeof clip.id !== "string" || typeof clip.assetId !== "string") {
+    return null;
+  }
+
+  return {
+    assetId: clip.assetId,
+    endMs: typeof clip.endMs === "number" && Number.isFinite(clip.endMs) ? Math.max(0, clip.endMs) : undefined,
+    id: clip.id,
+    note: typeof clip.note === "string" ? clip.note : undefined,
+    startMs:
+      typeof clip.startMs === "number" && Number.isFinite(clip.startMs) ? Math.max(0, clip.startMs) : undefined,
+  };
+}
+
+function readHitFeedbackSource(value: unknown, fallback: HitFeedbackSource): HitFeedbackSource {
+  return value === "default" || value === "custom" ? value : fallback;
+}
+
+function readMissFeedbackMode(value: unknown, fallback: MissFeedbackMode): MissFeedbackMode {
+  return value === "none" || value === "default" || value === "custom" ? value : fallback;
+}
+
+function readComboMusicMode(value: unknown, fallback: ComboMusicMode): ComboMusicMode {
+  return value === "fullTrack" || value === "manualClips" ? value : fallback;
+}
+
+function readComboBreakBehavior(value: unknown, fallback: ComboBreakBehavior): ComboBreakBehavior {
+  return value === "restart" || value === "pause" || value === "stop" ? value : fallback;
+}
+
+function readComboResumeBehavior(value: unknown, fallback: ComboResumeBehavior): ComboResumeBehavior {
+  return value === "fromStart" || value === "fromPausedPosition" ? value : fallback;
+}
+
+function readComboOverflowBehavior(value: unknown, fallback: ComboOverflowBehavior): ComboOverflowBehavior {
+  return value === "holdLast" || value === "loop" || value === "continueFullTrack" || value === "silent"
+    ? value
+    : fallback;
+}
+
+function readVolume(value: unknown, fallback: number) {
+  return readNumber(value, fallback, 0, 1);
+}
+
+function readComboMusicClip(value: unknown, fallbackIndex: number): ComboMusicClip | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const item = value as Partial<ComboMusicClip>;
+  const index =
+    typeof item.index === "number" && Number.isInteger(item.index) && item.index > 0 ? item.index : fallbackIndex;
+  const startMs = typeof item.startMs === "number" && Number.isFinite(item.startMs) ? Math.max(0, item.startMs) : 0;
+  const endMs =
+    typeof item.endMs === "number" && Number.isFinite(item.endMs) ? Math.max(startMs + 1, item.endMs) : startMs + 300;
+
+  return {
+    endMs,
+    id: typeof item.id === "string" ? item.id : `combo_clip_${index}`,
+    index,
+    note: readString(item.note),
+    startMs,
+  };
+}
+
+function readCustomSoundSettings(value: unknown): CustomSoundSettings {
+  const fallback = createDefaultCustomSoundSettings();
+  const settings =
+    value && typeof value === "object" ? (value as Partial<CustomSoundSettings> & Record<string, unknown>) : {};
+  const comboMusic =
+    settings.comboMusic && typeof settings.comboMusic === "object"
+      ? (settings.comboMusic as unknown as Record<string, unknown>)
+      : {};
+  const hitFeedback =
+    settings.hitFeedback && typeof settings.hitFeedback === "object"
+      ? (settings.hitFeedback as unknown as Record<string, unknown>)
+      : {};
+  const missFeedback =
+    settings.missFeedback && typeof settings.missFeedback === "object"
+      ? (settings.missFeedback as unknown as Record<string, unknown>)
+      : {};
+  const legacyHit = settings.hit && typeof settings.hit === "object" ? (settings.hit as Record<string, unknown>) : {};
+  const legacyMiss =
+    settings.miss && typeof settings.miss === "object" ? (settings.miss as Record<string, unknown>) : {};
+  const legacyHitSequence = Array.isArray(legacyHit.sequence) ? legacyHit.sequence : [];
+  const legacySourceAssetId =
+    typeof comboMusic.sourceAssetId === "string"
+      ? comboMusic.sourceAssetId
+      : readClipRef(
+          (legacyHitSequence.find(
+            (item): item is Record<string, unknown> => Boolean(item && typeof item === "object" && "clip" in item),
+          ) as Record<string, unknown> | undefined)?.clip,
+        )?.assetId ?? null;
+  const legacyComboClips = legacyHitSequence
+    .map((item, index) => {
+      const legacyItem = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+      const clip = readClipRef(legacyItem.clip);
+      if (!clip || typeof clip.startMs !== "number" || typeof clip.endMs !== "number") {
+        return null;
+      }
+
+      return readComboMusicClip(
+        {
+          endMs: clip.endMs,
+          id: legacyItem.id,
+          index: legacyItem.index,
+          note: legacyItem.note ?? clip.note,
+          startMs: clip.startMs,
+        },
+        index + 1,
+      );
+    })
+    .filter((item: ComboMusicClip | null): item is ComboMusicClip => Boolean(item));
+
+  return {
+    comboMusic: {
+      breakBehavior: readComboBreakBehavior(comboMusic.breakBehavior, fallback.comboMusic.breakBehavior),
+      clips: Array.isArray(comboMusic.clips)
+        ? comboMusic.clips
+            .map((item, index) => readComboMusicClip(item, index + 1))
+            .filter((item): item is ComboMusicClip => Boolean(item))
+            .sort((first, second) => first.index - second.index)
+        : legacyComboClips,
+      enabled: readBoolean(comboMusic.enabled, legacyComboClips.length > 0 ? true : fallback.comboMusic.enabled),
+      mode: readComboMusicMode(comboMusic.mode, fallback.comboMusic.mode),
+      overflowBehavior: readComboOverflowBehavior(comboMusic.overflowBehavior, fallback.comboMusic.overflowBehavior),
+      resumeBehavior: readComboResumeBehavior(comboMusic.resumeBehavior, fallback.comboMusic.resumeBehavior),
+      sourceAssetId: legacySourceAssetId,
+      volume: readVolume(comboMusic.volume, fallback.comboMusic.volume),
+    },
+    hitFeedback: {
+      customClip: readClipRef(hitFeedback.customClip) ?? readClipRef(legacyHit.singleClip) ?? fallback.hitFeedback.customClip,
+      enabled: readBoolean(hitFeedback.enabled, fallback.hitFeedback.enabled),
+      playWithComboMusic: readBoolean(hitFeedback.playWithComboMusic, fallback.hitFeedback.playWithComboMusic),
+      source: readHitFeedbackSource(hitFeedback.source, fallback.hitFeedback.source),
+    },
+    missFeedback: {
+      customClip:
+        readClipRef(missFeedback.customClip) ?? readClipRef(legacyMiss.singleClip) ?? fallback.missFeedback.customClip,
+      mode: readMissFeedbackMode(missFeedback.mode, fallback.missFeedback.mode),
+      volume: readVolume(missFeedback.volume, fallback.missFeedback.volume),
+    },
+  };
 }
 
 function readHitEffectType(value: unknown, fallback: HitEffectType): HitEffectType {
@@ -191,6 +360,7 @@ function loadSettings(): PersistedSettings {
       },
       language: isLanguagePreference(settings.language) ? settings.language : defaultSettings.language,
       sound: {
+        custom: readCustomSoundSettings(settings.sound?.custom),
         customEnabled: readBoolean(settings.sound?.customEnabled, defaultSettings.sound.customEnabled),
         enabled: readBoolean(settings.sound?.enabled, defaultSettings.sound.enabled),
         useHitEffectSound: readBoolean(settings.sound?.useHitEffectSound, defaultSettings.sound.useHitEffectSound),

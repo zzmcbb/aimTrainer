@@ -6,6 +6,8 @@ import {
   createTrainingHistoryRecord,
   saveTrainingRecord,
 } from "@/pages/history/historyRecords";
+import { getSoundObjectUrl, playSoundClip } from "@/lib/soundEngine";
+import type { ComboMusicClip, SoundClipRef } from "@/lib/soundAssets";
 import { useSettingsStore } from "@/stores/settingsStore";
 
 const distance = 12;
@@ -26,10 +28,17 @@ const maxActiveHitEffects = 8;
 const nukeEffectCooldownMs = 140;
 const nukeParticleCount = 54;
 const bloodMistParticleCount = 30;
-const aimAssistMinRangeNdc = 0.04;
-const aimAssistMaxRangeNdc = 0.44;
-const aimAssistMinRadiansPerSecond = 0.38;
-const aimAssistMaxRadiansPerSecond = 8.8;
+const aimAssistMinAngleRadians = 0.012;
+const aimAssistMaxAngleRadians = 0.22;
+const aimAssistMinRadiansPerSecond = 0.025;
+const aimAssistMaxRadiansPerSecond = 7.2;
+const hitEffectSoundPaths: Record<HitEffectKind, string> = {
+  balloon: "/sounds/balloon.mp3",
+  bloodMist: "/sounds/blood_fog.mp3",
+  burst: "/sounds/burst.mp3",
+  explosion: "/sounds/explosion.mp3",
+  nuke: "/sounds/nuke.mp3",
+};
 
 type HitEffectKind = "balloon" | "burst" | "explosion" | "nuke" | "bloodMist";
 
@@ -123,6 +132,11 @@ export function useGrid3x3Training() {
   const soundSettingsRef = useRef(soundSettings);
   const targetSettingsRef = useRef(targetSettings);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const comboCountRef = useRef(0);
+  const comboTrackAudioRef = useRef<HTMLAudioElement | null>(null);
+  const comboTrackAssetIdRef = useRef<string | null>(null);
+  const comboPausedSecondsRef = useRef(0);
+  const activeComboClipRef = useRef<{ audio: HTMLAudioElement; timerId: number | null } | null>(null);
   const fpsLimitRef = useRef(trainingSettings.fpsLimit);
   const lastRenderedAtRef = useRef(0);
   const sensitivityRef = useRef({
@@ -462,6 +476,7 @@ export function useGrid3x3Training() {
           startedAt: performance.now(),
           yaw: 0,
         };
+        comboCountRef.current = 0;
         savedSessionIdRef.current = null;
 
         setRemainingMs(nextDurationMs);
@@ -599,46 +614,173 @@ export function useGrid3x3Training() {
     [],
   );
 
-  const playNoise = useCallback(
-    (
-      context: AudioContext,
-      {
-        at,
-        duration,
-        gain,
-        highpass = 360,
-        lowpass = 5200,
-      }: { at: number; duration: number; gain: number; highpass?: number; lowpass?: number },
-    ) => {
-      const sampleCount = Math.max(1, Math.floor(context.sampleRate * duration));
-      const buffer = context.createBuffer(1, sampleCount, context.sampleRate);
-      const data = buffer.getChannelData(0);
+  const playAudioFile = useCallback((path: string) => {
+    const audio = new Audio(path);
+    audio.currentTime = 0;
+    audio.volume = 0.72;
+    audio.play().catch(() => {
+      // Browsers can reject audio playback if the page has not received a user gesture yet.
+    });
+  }, []);
 
-      for (let index = 0; index < sampleCount; index += 1) {
-        const fade = 1 - index / sampleCount;
-        data[index] = (Math.random() * 2 - 1) * fade * fade;
+  const playDefaultHitFeedback = useCallback(
+    (effectType: HitEffectKind) => {
+      const soundSettings = soundSettingsRef.current;
+      const useEffectSound = !soundSettings.customEnabled && hitSettingsRef.current.enabled && soundSettings.useHitEffectSound;
+
+      if (useEffectSound) {
+        playAudioFile(hitEffectSoundPaths[effectType]);
+        return;
       }
 
-      const source = context.createBufferSource();
-      const highpassFilter = context.createBiquadFilter();
-      const lowpassFilter = context.createBiquadFilter();
-      const gainNode = context.createGain();
+      const context = getAudioContext();
+      if (!context) {
+        return;
+      }
 
-      source.buffer = buffer;
-      highpassFilter.type = "highpass";
-      highpassFilter.frequency.value = highpass;
-      lowpassFilter.type = "lowpass";
-      lowpassFilter.frequency.value = lowpass;
-      gainNode.gain.setValueAtTime(gain, at);
-      gainNode.gain.exponentialRampToValueAtTime(0.0001, at + duration);
-      source.connect(highpassFilter);
-      highpassFilter.connect(lowpassFilter);
-      lowpassFilter.connect(gainNode);
-      gainNode.connect(context.destination);
-      source.start(at);
-      source.stop(at + duration);
+      const now = context.currentTime;
+      playTone(context, { at: now, duration: 0.045, frequency: 1320, gain: 0.178, type: "sine" });
+      playTone(context, { at: now + 0.018, duration: 0.07, frequency: 1980, gain: 0.148, type: "triangle" });
     },
-    [],
+    [getAudioContext, playAudioFile, playTone],
+  );
+
+  const playDefaultMissFeedback = useCallback(() => {
+    const context = getAudioContext();
+    if (!context) {
+      return;
+    }
+
+    const now = context.currentTime;
+    playTone(context, { at: now, duration: 0.05, frequency: 220, gain: 0.13, type: "sawtooth" });
+    playTone(context, { at: now + 0.035, duration: 0.06, frequency: 160, gain: 0.09, type: "triangle" });
+  }, [getAudioContext, playTone]);
+
+  const stopActiveComboClip = useCallback(() => {
+    const activeClip = activeComboClipRef.current;
+    if (!activeClip) {
+      return;
+    }
+
+    activeClip.audio.pause();
+    if (activeClip.timerId !== null) {
+      window.clearTimeout(activeClip.timerId);
+    }
+    activeComboClipRef.current = null;
+  }, []);
+
+  const stopComboTrack = useCallback((resetToStart: boolean) => {
+    const audio = comboTrackAudioRef.current;
+    if (!audio) {
+      return;
+    }
+
+    audio.pause();
+    comboPausedSecondsRef.current = audio.currentTime;
+    if (resetToStart) {
+      audio.currentTime = 0;
+      comboPausedSecondsRef.current = 0;
+    }
+  }, []);
+
+  const getComboTrackAudio = useCallback(async (assetId: string) => {
+    if (comboTrackAudioRef.current && comboTrackAssetIdRef.current === assetId) {
+      return comboTrackAudioRef.current;
+    }
+
+    const objectUrl = await getSoundObjectUrl(assetId);
+    const audio = new Audio(objectUrl);
+    comboTrackAudioRef.current = audio;
+    comboTrackAssetIdRef.current = assetId;
+    comboPausedSecondsRef.current = 0;
+    return audio;
+  }, []);
+
+  const selectComboClip = useCallback((clips: ComboMusicClip[], comboCount: number) => {
+    const sortedClips = [...clips].sort((first, second) => first.index - second.index);
+    if (sortedClips.length === 0) {
+      return null;
+    }
+
+    const exact = sortedClips.find((item) => item.index === comboCount);
+    if (exact) {
+      return exact;
+    }
+
+    const overflowBehavior = soundSettingsRef.current.custom.comboMusic.overflowBehavior;
+    if (overflowBehavior === "silent" || overflowBehavior === "continueFullTrack") {
+      return null;
+    }
+
+    if (overflowBehavior === "loop") {
+      return sortedClips[(comboCount - 1) % sortedClips.length] ?? null;
+    }
+
+    return sortedClips.at(-1) ?? null;
+  }, []);
+
+  const playComboMusic = useCallback(
+    (comboCount: number) => {
+      const soundSettings = soundSettingsRef.current;
+      const comboMusic = soundSettings.custom.comboMusic;
+
+      if (!soundSettings.enabled || !soundSettings.customEnabled || !comboMusic.enabled || !comboMusic.sourceAssetId) {
+        return;
+      }
+
+      if (comboMusic.mode === "fullTrack") {
+        if (comboCount > 1 && comboTrackAudioRef.current && !comboTrackAudioRef.current.paused) {
+          return;
+        }
+
+        getComboTrackAudio(comboMusic.sourceAssetId)
+          .then((audio) => {
+            audio.volume = comboMusic.volume;
+            if (comboMusic.resumeBehavior === "fromPausedPosition" && comboPausedSecondsRef.current > 0) {
+              audio.currentTime = comboPausedSecondsRef.current;
+            } else {
+              audio.currentTime = 0;
+            }
+            return audio.play();
+          })
+          .catch(() => undefined);
+        return;
+      }
+
+      const clip = selectComboClip(comboMusic.clips, comboCount);
+      if (!clip) {
+        if (comboMusic.overflowBehavior === "continueFullTrack") {
+          getComboTrackAudio(comboMusic.sourceAssetId)
+            .then((audio) => {
+              audio.volume = comboMusic.volume;
+              if (audio.paused) {
+                return audio.play();
+              }
+              return undefined;
+            })
+            .catch(() => undefined);
+        }
+        return;
+      }
+
+      stopActiveComboClip();
+      getSoundObjectUrl(comboMusic.sourceAssetId)
+        .then((objectUrl) => {
+          const audio = new Audio(objectUrl);
+          const durationMs = Math.max(20, clip.endMs - clip.startMs);
+          audio.volume = comboMusic.volume;
+          audio.currentTime = clip.startMs / 1000;
+          const timerId = window.setTimeout(() => {
+            audio.pause();
+            activeComboClipRef.current = null;
+          }, durationMs);
+
+          activeComboClipRef.current = { audio, timerId };
+          return audio.play();
+        })
+        .catch(() => undefined);
+    },
+    [getComboTrackAudio, selectComboClip, stopActiveComboClip],
   );
 
   const playHitSound = useCallback(
@@ -649,56 +791,73 @@ export function useGrid3x3Training() {
         return;
       }
 
-      const context = getAudioContext();
-      if (!context) {
+      comboCountRef.current += 1;
+      const comboMusicEnabled =
+        soundSettings.customEnabled &&
+        soundSettings.custom.comboMusic.enabled &&
+        Boolean(soundSettings.custom.comboMusic.sourceAssetId);
+
+      if (comboMusicEnabled) {
+        playComboMusic(comboCountRef.current);
+      }
+
+      if (!soundSettings.customEnabled) {
+        playDefaultHitFeedback(effectType);
         return;
       }
 
-      const now = context.currentTime;
-      const useEffectSound = hitSettingsRef.current.enabled && soundSettings.useHitEffectSound;
-
-      if (!useEffectSound) {
-        if (soundSettings.customEnabled) {
-          playTone(context, { at: now, duration: 0.06, frequency: 860, gain: 0.04, type: "triangle" });
-          playTone(context, { at: now + 0.045, duration: 0.07, frequency: 1290, gain: 0.026, type: "sine" });
-          return;
-        }
-
-        playTone(context, { at: now, duration: 0.045, frequency: 1320, gain: 0.038, type: "sine" });
-        playTone(context, { at: now + 0.018, duration: 0.07, frequency: 1980, gain: 0.022, type: "triangle" });
+      const hitFeedback = soundSettings.custom.hitFeedback;
+      if (!hitFeedback.enabled || (comboMusicEnabled && !hitFeedback.playWithComboMusic)) {
         return;
       }
 
-      if (effectType === "balloon") {
-        playNoise(context, { at: now, duration: 0.1, gain: 0.05, highpass: 820, lowpass: 7400 });
-        playTone(context, { at: now, duration: 0.055, frequency: 540, gain: 0.035, type: "square" });
+      if (hitFeedback.source === "custom" && hitFeedback.customClip) {
+        playSoundClip(hitFeedback.customClip).catch(() => undefined);
         return;
       }
 
-      if (effectType === "burst") {
-        playTone(context, { at: now, duration: 0.08, frequency: 980, gain: 0.045, type: "triangle" });
-        playTone(context, { at: now + 0.035, duration: 0.11, frequency: 1540, gain: 0.032, type: "sine" });
-        return;
-      }
-
-      if (effectType === "explosion") {
-        playNoise(context, { at: now, duration: 0.22, gain: 0.07, highpass: 90, lowpass: 2600 });
-        playTone(context, { at: now, duration: 0.16, frequency: 92, gain: 0.05, type: "sawtooth" });
-        return;
-      }
-
-      if (effectType === "nuke") {
-        playNoise(context, { at: now, duration: 0.42, gain: 0.085, highpass: 55, lowpass: 1900 });
-        playTone(context, { at: now, duration: 0.34, frequency: 58, gain: 0.065, type: "sawtooth" });
-        playTone(context, { at: now + 0.055, duration: 0.16, frequency: 118, gain: 0.032, type: "square" });
-        return;
-      }
-
-      playNoise(context, { at: now, duration: 0.18, gain: 0.045, highpass: 240, lowpass: 1800 });
-      playTone(context, { at: now, duration: 0.08, frequency: 210, gain: 0.025, type: "triangle" });
+      playDefaultHitFeedback(effectType);
     },
-    [getAudioContext, playNoise, playTone],
+    [playComboMusic, playDefaultHitFeedback],
   );
+
+  const playMissSound = useCallback(() => {
+    const soundSettings = soundSettingsRef.current;
+
+    if (!soundSettings.enabled) {
+      return;
+    }
+
+    comboCountRef.current = 0;
+    stopActiveComboClip();
+
+    const comboMusic = soundSettings.custom.comboMusic;
+    if (soundSettings.customEnabled && comboMusic.enabled) {
+      if (comboMusic.breakBehavior === "restart") {
+        stopComboTrack(true);
+      } else if (comboMusic.breakBehavior === "pause") {
+        stopComboTrack(false);
+      } else {
+        stopComboTrack(true);
+      }
+    }
+
+    if (!soundSettings.customEnabled) {
+      return;
+    }
+
+    const missFeedback = soundSettings.custom.missFeedback;
+    if (missFeedback.mode === "none") {
+      return;
+    }
+
+    if (missFeedback.mode === "custom" && missFeedback.customClip) {
+      playSoundClip(missFeedback.customClip, missFeedback.volume).catch(() => undefined);
+      return;
+    }
+
+    playDefaultMissFeedback();
+  }, [playDefaultMissFeedback, stopActiveComboClip, stopComboTrack]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -750,8 +909,12 @@ export function useGrid3x3Training() {
 
       audioContextRef.current?.close();
       audioContextRef.current = null;
+      stopActiveComboClip();
+      comboTrackAudioRef.current?.pause();
+      comboTrackAudioRef.current = null;
+      comboTrackAssetIdRef.current = null;
     };
-  }, [clearCountdownTimer]);
+  }, [clearCountdownTimer, stopActiveComboClip]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -862,7 +1025,8 @@ export function useGrid3x3Training() {
 
     const raycaster = new THREE.Raycaster();
     const center = new THREE.Vector2(0, 0);
-    const projectedTargetCenter = new THREE.Vector3();
+    const cameraForward = new THREE.Vector3();
+    const targetCenterDirection = new THREE.Vector3();
     const hitEffects: HitEffectInstance[] = [];
     let lastNukeEffectAt = 0;
     let screenShake: ScreenShakeState | null = null;
@@ -1298,29 +1462,31 @@ export function useGrid3x3Training() {
       }
 
       const strength = THREE.MathUtils.clamp(settings.strength, 1, 100) / 100;
-      const assistRange = THREE.MathUtils.lerp(aimAssistMinRangeNdc, aimAssistMaxRangeNdc, strength ** 0.78);
+      const assistAngle = THREE.MathUtils.lerp(
+        aimAssistMinAngleRadians,
+        aimAssistMaxAngleRadians,
+        strength ** 1.08,
+      );
       const maxRadiansPerSecond = THREE.MathUtils.lerp(
         aimAssistMinRadiansPerSecond,
         aimAssistMaxRadiansPerSecond,
-        strength ** 1.22,
+        strength ** 1.35,
       );
       let nearestTarget: any | null = null;
-      let nearestDistance = Number.POSITIVE_INFINITY;
+      let nearestAngle = Number.POSITIVE_INFINITY;
+
+      camera.getWorldDirection(cameraForward);
 
       targetRefs.current.forEach((target) => {
         if (!target.visible) {
           return;
         }
 
-        projectedTargetCenter.copy(target.position).project(camera);
+        targetCenterDirection.copy(target.position).sub(camera.position).normalize();
+        const targetAngle = cameraForward.angleTo(targetCenterDirection);
 
-        if (projectedTargetCenter.z < -1 || projectedTargetCenter.z > 1) {
-          return;
-        }
-
-        const screenDistance = Math.hypot(projectedTargetCenter.x, projectedTargetCenter.y);
-        if (screenDistance <= assistRange && screenDistance < nearestDistance) {
-          nearestDistance = screenDistance;
+        if (targetAngle <= assistAngle && targetAngle < nearestAngle) {
+          nearestAngle = targetAngle;
           nearestTarget = target;
         }
       });
@@ -1334,7 +1500,7 @@ export function useGrid3x3Training() {
       const flatDistance = Math.hypot(targetPosition.x, targetPosition.z);
       const desiredPitch = Math.atan2(targetPosition.y, flatDistance);
       const gameState = gameStateRef.current;
-      const falloff = Math.max(0, 1 - nearestDistance / assistRange);
+      const falloff = Math.max(0, 1 - nearestAngle / assistAngle);
       const assistFactor = 0.25 + falloff ** 0.62 * 0.75;
       const maxStep = maxRadiansPerSecond * (deltaMs / 1000) * assistFactor;
       const yawDelta = THREE.MathUtils.clamp(desiredYaw - gameState.yaw, -maxStep, maxStep);
@@ -1483,6 +1649,7 @@ export function useGrid3x3Training() {
         replaceHitTarget(hitTarget);
       } else {
         gameState.misses += 1;
+        playMissSound();
       }
 
       playCrosshairSpread();
@@ -1529,7 +1696,7 @@ export function useGrid3x3Training() {
       accentMaterial.dispose();
       mount.removeChild(renderer.domElement);
     };
-  }, [finishTraining, pauseTraining, playCrosshairSpread, playHitSound, replaceHitTarget, syncStats]);
+  }, [finishTraining, pauseTraining, playCrosshairSpread, playHitSound, playMissSound, replaceHitTarget, syncStats]);
 
   const shots = stats.hits + stats.misses;
   const accuracy = shots > 0 ? Math.round((stats.hits / shots) * 100) : 0;
