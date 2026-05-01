@@ -8,7 +8,7 @@
     "bestHits": "Best Hits",
     "bestScore": "Best Score",
     "bestScoreHits": "Best Score / Best Hits",
-    "modeTrend": "Score and accuracy trend for the selected mode.",
+    "modeTrend": "Average reaction time and accuracy trend for the selected mode.",
     "modeTrendTitle": "Mode Trend",
     "sessions": "Sessions",
     "subtitle": "Review each mode's long-term trend, recent sessions, and single-session results.",

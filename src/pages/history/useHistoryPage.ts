@@ -120,7 +120,7 @@ export function useHistoryPage() {
   const trendChartData = useMemo(
     () => ({
       labels: trendRecords.map((record) => formatDateTime(record.completedAt)).reverse(),
-      scores: trendRecords.map((record) => record.score).reverse(),
+      averageReaction: trendRecords.map((record) => record.averageReactionMs).reverse(),
       accuracy: trendRecords.map((record) => record.accuracy).reverse(),
     }),
     [trendRecords],
@@ -182,7 +182,7 @@ export function useHistoryPage() {
     selectedModeName,
     selectedRecord,
     labels: trendChartData.labels,
-    scores: trendChartData.scores,
+    averageReaction: trendChartData.averageReaction,
     accuracy: trendChartData.accuracy,
     stats,
     trendRecords,

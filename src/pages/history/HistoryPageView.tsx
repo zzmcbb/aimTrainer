@@ -27,7 +27,7 @@ const datePickerPanelGap = 8;
 const datePickerViewportMargin = 12;
 const chartLegendItems = [
   { color: "#00d5ff", key: "analytics.accuracy", fallback: "命中率趋势" },
-  { color: "#f5a524", key: "records.score", fallback: "分数" },
+  { color: "#f5a524", key: "records.reaction", fallback: "平均反应时间" },
 ];
 
 export function HistoryPageView({ viewModel }: HistoryPageViewProps) {
@@ -45,7 +45,7 @@ export function HistoryPageView({ viewModel }: HistoryPageViewProps) {
     selectedRecord,
     labels,
     accuracy,
-    scores,
+    averageReaction,
     stats,
     trendRecords,
     dateRange,
@@ -132,7 +132,7 @@ export function HistoryPageView({ viewModel }: HistoryPageViewProps) {
                 <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
                   <h2 className="text-lg font-semibold">{t("analytics.modeTrendTitle", { defaultValue: "模式趋势" })}</h2>
                   <p className="text-sm text-muted-foreground">
-                    {t("analytics.modeTrend", { defaultValue: "当前模式的得分与命中率趋势" })}
+                    {t("analytics.modeTrend", { defaultValue: "当前模式的平均反应时间与命中率趋势" })}
                   </p>
                 </div>
                 <Badge variant="secondary" className="border border-accent/20 bg-accent/10 text-accent">
@@ -146,10 +146,10 @@ export function HistoryPageView({ viewModel }: HistoryPageViewProps) {
                 <TrainingAnalyticsChart
                   labels={labels}
                   accuracy={accuracy}
-                  scores={scores}
+                  averageReaction={averageReaction}
                   accuracyLabel={t("analytics.accuracy", { defaultValue: "命中率趋势" })}
+                  averageReactionLabel={t("records.reaction", { defaultValue: "平均反应时间" })}
                   className="h-[220px] sm:h-[240px]"
-                  scoreLabel={t("records.score", { defaultValue: "分数" })}
                 />
               ) : (
                 <EmptyState

@@ -8,7 +8,7 @@
     "bestHits": "最高命中",
     "bestScore": "最高得分",
     "bestScoreHits": "最高得分 / 最高命中",
-    "modeTrend": "当前模式的得分与命中率趋势",
+    "modeTrend": "当前模式的平均反应时间与命中率趋势",
     "modeTrendTitle": "模式趋势",
     "sessions": "训练次数",
     "subtitle": "查看每个模式的长期趋势、近期训练和单次结算详情。",

@@ -10,19 +10,19 @@ echarts.use([GridComponent, LegendComponent, TooltipComponent, LineChart, Canvas
 interface TrainingAnalyticsChartProps {
   labels: string[];
   accuracy: number[];
-  scores: number[];
+  averageReaction: number[];
   accuracyLabel: string;
+  averageReactionLabel: string;
   className?: string;
-  scoreLabel: string;
 }
 
 export function TrainingAnalyticsChart({
   labels,
   accuracy,
-  scores,
+  averageReaction,
   accuracyLabel,
+  averageReactionLabel,
   className = "h-[320px]",
-  scoreLabel,
 }: TrainingAnalyticsChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
 
@@ -88,6 +88,7 @@ export function TrainingAnalyticsChart({
           type: "value",
           axisLabel: {
             color: "rgba(255,255,255,0.48)",
+            formatter: "{value}ms",
           },
           splitLine: {
             show: false,
@@ -110,11 +111,11 @@ export function TrainingAnalyticsChart({
           },
         },
         {
-          name: scoreLabel,
+          name: averageReactionLabel,
           type: "line",
           smooth: true,
           yAxisIndex: 1,
-          data: scores,
+          data: averageReaction,
           symbolSize: 7,
           lineStyle: {
             width: 2,
@@ -132,7 +133,7 @@ export function TrainingAnalyticsChart({
       window.removeEventListener("resize", handleResize);
       chart.dispose();
     };
-  }, [accuracy, accuracyLabel, labels, scoreLabel, scores]);
+  }, [accuracy, accuracyLabel, averageReaction, averageReactionLabel, labels]);
 
   return <div ref={chartRef} className={`${className} w-full`} />;
 }
