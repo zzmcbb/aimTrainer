@@ -281,7 +281,7 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
     setMessage("");
     try {
       const archive = await exportComboSoundPackArchive(pack, asset);
-      downloadBlob(archive, `${safeDownloadName(pack.name)}.aimcombo.zip`);
+      downloadBlob(archive, `${safeDownloadName(pack.name)}.aimTrainer.zip`);
       setMessage(`已导出「${pack.name}」。`);
       setComboArchiveMessage(`已导出「${pack.name}」。`);
     } catch (exportError) {
@@ -521,8 +521,9 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
                 />
                 <UploadButton
                   disabled={!sound.enabled || !sound.custom.hitFeedback.enabled}
-                  label="上传单次击中音效"
+                  label="导入/上传单次击中音效"
                   onFile={(file) => void uploadShortClip(file, "hit")}
+                  tooltip="只支持 mp3 和 wav 格式"
                 />
                 {typeof uploadProgress.hit_short === "number" && <ProgressBar value={uploadProgress.hit_short} />}
               </div>
@@ -652,12 +653,14 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
                   disabled={!sound.enabled}
                   label="添加音效"
                   onFile={(file) => void uploadComboTrack(file)}
+                  tooltip="只支持 mp3 和 wav 格式"
                 />
                 <UploadButton
-                  accept=".zip,application/zip,application/x-zip-compressed"
+                  accept=".aimTrainer.zip,.zip,application/zip,application/x-zip-compressed"
                   disabled={!sound.enabled}
                   label="导入整合包"
                   onFile={(file) => void importComboPack(file)}
+                  tooltip="只能支持 .aimTrainer.zip 结尾的文件"
                 />
               </div>
               {typeof uploadProgress.combo === "number" && <ProgressBar value={uploadProgress.combo} />}
@@ -755,8 +758,9 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
                 />
                 <UploadButton
                   disabled={!sound.enabled}
-                  label="上传未命中短音效"
+                  label="导入/上传未命中短音效"
                   onFile={(file) => void uploadShortClip(file, "miss")}
+                  tooltip="只支持 mp3 和 wav 格式"
                 />
                 {typeof uploadProgress.miss_short === "number" && <ProgressBar value={uploadProgress.miss_short} />}
               </div>

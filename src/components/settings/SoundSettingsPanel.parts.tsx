@@ -1,5 +1,5 @@
 import { useRef, type ReactNode } from "react";
-import { FileAudio, Music2, Pencil, Play, Trash2, Upload, Volume2 } from "lucide-react";
+import { FileAudio, Info, Music2, Pencil, Play, Trash2, Upload, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { SoundAsset, SoundClipRef } from "@/lib/soundAssets";
@@ -149,19 +149,36 @@ export function UploadButton({
   disabled = false,
   label,
   onFile,
+  tooltip,
 }: {
   accept?: string;
   disabled?: boolean;
   label: string;
   onFile: (file: File) => void;
+  tooltip?: string;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   return (
     <>
-      <Button type="button" variant="outline" disabled={disabled} onClick={() => inputRef.current?.click()}>
-        <Upload className="h-4 w-4" />
+      <Button
+        type="button"
+        variant="outline"
+        disabled={disabled}
+        onClick={() => inputRef.current?.click()}
+        className="group relative overflow-visible"
+        title={tooltip}
+      >
+        <Upload className="h-5 w-5" />
         {label}
+        {tooltip && (
+          <span className="ml-0.5 inline-flex" aria-label={tooltip}>
+            <Info className="h-5 w-5 text-muted-foreground transition-colors group-hover:text-foreground" />
+            <span className="pointer-events-none absolute bottom-[calc(100%+0.5rem)] left-1/2 z-50 w-max max-w-56 -translate-x-1/2 rounded-lg border border-white/10 bg-background/95 px-2.5 py-1.5 text-xs font-normal leading-5 text-foreground opacity-0 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+              {tooltip}
+            </span>
+          </span>
+        )}
       </Button>
       <input
         ref={inputRef}

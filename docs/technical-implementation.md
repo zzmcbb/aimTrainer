@@ -286,7 +286,7 @@ ComboSoundPack
 - clip 数量。
 - clip 时间范围。
 
-导出时会生成 `.aimcombo.zip` 文件。
+导出时会生成 `.aimTrainer.zip` 文件。
 
 ## 10. 国际化实现
 

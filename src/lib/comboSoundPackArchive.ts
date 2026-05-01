@@ -122,8 +122,8 @@ export async function importComboSoundPackArchive(file: File): Promise<ComboSoun
 }
 
 export function getComboSoundPackArchiveFileError(file: Pick<File, "name" | "size">) {
-  if (!/\.aimcombo\.zip$/i.test(file.name)) {
-    return "请选择由本应用导出的 .aimcombo.zip 连续击中整合包。";
+  if (!/\.aimTrainer\.zip$/i.test(file.name)) {
+    return "请选择由本应用导出的 .aimTrainer.zip 连续击中整合包。";
   }
 
   if (file.size > comboSoundPackArchiveLimits.zipBytes) {
