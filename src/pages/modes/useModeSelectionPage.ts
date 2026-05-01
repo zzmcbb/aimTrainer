@@ -11,11 +11,13 @@ const trainingModes = [
   },
   {
     mode: "micro" as const,
+    path: "/training/micro-adjustment",
     titleKey: "modes.micro.title",
     descriptionKey: "modes.micro.description",
   },
   {
     mode: "tracking" as const,
+    path: "/training/tracking",
     titleKey: "modes.tracking.title",
     descriptionKey: "modes.tracking.description",
   },

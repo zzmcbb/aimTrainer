@@ -101,8 +101,8 @@ export function useHistoryPage() {
     [dateRange, modeRecords],
   );
   const filteredRecords = useMemo(
-    () => records.filter((record) => isInDateRange(record, dateRange)),
-    [dateRange, records],
+    () => modeRecords.filter((record) => isInDateRange(record, dateRange)),
+    [dateRange, modeRecords],
   );
   const recordPageCount = Math.max(1, Math.ceil(filteredRecords.length / recordPageSize));
   const currentRecordPage = Math.min(recordPage, recordPageCount);

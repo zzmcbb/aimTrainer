@@ -5,6 +5,7 @@ import {
   calculateTrainingScore,
   createTrainingHistoryRecord,
   saveTrainingRecord,
+  type TrainingModeId,
 } from "@/pages/history/historyRecords";
 import { getSoundObjectUrl, playSoundClip, type PlayingSoundClip } from "@/lib/soundEngine";
 import type { ComboMusicClip, SoundClipRef } from "@/lib/soundAssets";
@@ -13,6 +14,10 @@ import { useSettingsStore } from "@/stores/settingsStore";
 const distance = 12;
 const spacing = 2.15;
 const targetRadius = 0.88;
+const microTargetScale = 0.55;
+const trackingSampleIntervalMs = 100;
+const trackingMovementBounds = { x: 3.6, y: 1.6 };
+const trackingHitColor = 0xff3b30;
 const baseRadiansPerPixel = 0.002;
 const maxYaw = Math.PI / 2;
 const maxPitch = Math.PI / 2;
@@ -75,6 +80,28 @@ const gridPositions = Array.from({ length: 9 }, (_, index) => {
   return new THREE.Vector3((col - 1) * spacing, (1 - row) * spacing, -distance);
 });
 
+const trainingModeConfigs: Record<TrainingModeId, {
+  historyName: string;
+  namespace: "grid3x3" | "microAdjustment" | "tracking";
+  targetCount: number;
+}> = {
+  "grid-3x3": {
+    historyName: "Grid 3x3",
+    namespace: "grid3x3",
+    targetCount: 3,
+  },
+  "micro-adjustment": {
+    historyName: "Micro Adjustment",
+    namespace: "microAdjustment",
+    targetCount: 1,
+  },
+  tracking: {
+    historyName: "Tracking",
+    namespace: "tracking",
+    targetCount: 1,
+  },
+};
+
 interface GridStats {
   hits: number;
   misses: number;
@@ -92,6 +119,7 @@ interface MutableGameState {
   reactionSamples: number[];
   remainingMs: number;
   timeline: TimelineBucket[];
+  trackingSampleAccumulatorMs: number;
   durationMs: number;
   startedAt: number;
   yaw: number;
@@ -112,7 +140,8 @@ const createEmptyTimeline = (durationMs: number) =>
     reactionSamples: 0,
   }));
 
-export function useGrid3x3Training() {
+export function useGrid3x3Training(modeId: TrainingModeId = "grid-3x3") {
+  const modeConfig = trainingModeConfigs[modeId];
   const { t } = useTranslation("training");
   const mountRef = useRef<HTMLDivElement>(null);
   const targetRefs = useRef<any[]>([]);
@@ -159,6 +188,7 @@ export function useGrid3x3Training() {
     reactionSamples: [],
     remainingMs: defaultDurationMs,
     timeline: createEmptyTimeline(defaultDurationMs),
+    trackingSampleAccumulatorMs: 0,
     durationMs: defaultDurationMs,
     startedAt: 0,
     yaw: 0,
@@ -291,6 +321,7 @@ export function useGrid3x3Training() {
 
   const setTargetToGridIndex = useCallback((target: any, gridIndex: number, appearedAt = performance.now()) => {
     target.position.copy(gridPositions[gridIndex]);
+    target.scale.setScalar(1);
     target.visible = true;
     target.material.opacity = 0;
     target.userData.gridIndex = gridIndex;
@@ -298,9 +329,61 @@ export function useGrid3x3Training() {
     gameStateRef.current.lastTargetAppearedAt = appearedAt;
   }, []);
 
+  const createMicroPosition = useCallback((previousPosition?: any) => {
+    const centerBias = Math.random() ** 1.7;
+    const angle = Math.random() * Math.PI * 2;
+    const radiusX = THREE.MathUtils.lerp(0.28, 1.55, centerBias);
+    const radiusY = THREE.MathUtils.lerp(0.2, 1.08, centerBias);
+    const candidate = new THREE.Vector3(
+      Math.cos(angle) * radiusX,
+      Math.sin(angle) * radiusY,
+      -distance,
+    );
+
+    if (previousPosition && candidate.distanceTo(previousPosition) < 0.42) {
+      candidate.x = THREE.MathUtils.clamp(candidate.x + (candidate.x >= 0 ? 0.55 : -0.55), -1.65, 1.65);
+    }
+
+    return candidate;
+  }, []);
+
+  const setTargetToMicroPosition = useCallback((target: any, appearedAt = performance.now()) => {
+    const previousPosition = target.position?.clone();
+    target.position.copy(createMicroPosition(previousPosition));
+    target.scale.setScalar(microTargetScale);
+    target.visible = true;
+    target.material.opacity = 0;
+    target.userData.spawnedAt = appearedAt;
+    gameStateRef.current.lastTargetAppearedAt = appearedAt;
+  }, [createMicroPosition]);
+
+  const setTargetToTrackingStart = useCallback((target: any, appearedAt = performance.now()) => {
+    target.position.set(-2.6 + Math.random() * 1.2, THREE.MathUtils.randFloat(-0.65, 0.65), -distance);
+    target.scale.setScalar(0.74);
+    target.visible = true;
+    target.material.opacity = 0;
+    target.userData.spawnedAt = appearedAt;
+    target.userData.velocityX = THREE.MathUtils.randFloat(1.45, 2.25);
+    target.userData.velocityY = THREE.MathUtils.randFloat(-0.42, 0.42);
+    target.userData.nextTurnAt = appearedAt + THREE.MathUtils.randFloat(520, 1250);
+    gameStateRef.current.lastTargetAppearedAt = appearedAt;
+  }, []);
+
   const spawnInitialTargets = useCallback(() => {
     const gameState = gameStateRef.current;
     const activeIndices: number[] = [];
+
+    if (modeId === "micro-adjustment") {
+      targetRefs.current.forEach((target) => setTargetToMicroPosition(target));
+      gameState.activeTargetIndices = [];
+      return;
+    }
+
+    if (modeId === "tracking") {
+      targetRefs.current.forEach((target) => setTargetToTrackingStart(target));
+      gameState.activeTargetIndices = [];
+      return;
+    }
 
     targetRefs.current.forEach((target) => {
       const nextIndex = chooseAvailableGridIndex(activeIndices);
@@ -309,10 +392,19 @@ export function useGrid3x3Training() {
     });
 
     gameState.activeTargetIndices = activeIndices;
-  }, [chooseAvailableGridIndex, setTargetToGridIndex]);
+  }, [chooseAvailableGridIndex, modeId, setTargetToGridIndex, setTargetToMicroPosition, setTargetToTrackingStart]);
 
   const replaceHitTarget = useCallback(
     (target: any) => {
+      if (modeId === "micro-adjustment") {
+        setTargetToMicroPosition(target);
+        return;
+      }
+
+      if (modeId === "tracking") {
+        return;
+      }
+
       const gameState = gameStateRef.current;
       const previousIndex = target.userData.gridIndex as number;
       const otherIndices = gameState.activeTargetIndices.filter((index) => index !== previousIndex);
@@ -323,7 +415,7 @@ export function useGrid3x3Training() {
       setTargetToGridIndex(target, nextIndex);
       gameState.activeTargetIndices = [...otherIndices, nextIndex];
     },
-    [chooseAvailableGridIndex, setTargetToGridIndex],
+    [chooseAvailableGridIndex, modeId, setTargetToGridIndex, setTargetToMicroPosition],
   );
 
   const finishTraining = useCallback(() => {
@@ -339,8 +431,8 @@ export function useGrid3x3Training() {
         ? Math.round(reactionTotal / gameState.reactionSamples.length)
         : 0;
       const record = createTrainingHistoryRecord({
-        modeId: "grid-3x3",
-        modeName: "Grid 3x3",
+        modeId,
+        modeName: modeConfig.historyName,
         durationSeconds: Math.round(gameState.durationMs / 1000),
         hits: gameState.hits,
         misses: gameState.misses,
@@ -362,7 +454,7 @@ export function useGrid3x3Training() {
     if (document.pointerLockElement) {
       document.exitPointerLock();
     }
-  }, [syncStats]);
+  }, [modeConfig.historyName, modeId, syncStats]);
 
   const playCrosshairSpread = useCallback(() => {
     if (!crosshairSettingsRef.current.dynamicSpreadEnabled) {
@@ -476,6 +568,7 @@ export function useGrid3x3Training() {
           reactionSamples: [],
           remainingMs: nextDurationMs,
           timeline: createEmptyTimeline(nextDurationMs),
+          trackingSampleAccumulatorMs: 0,
           durationMs: nextDurationMs,
           startedAt: performance.now(),
           yaw: 0,
@@ -1028,7 +1121,7 @@ export function useGrid3x3Training() {
       transparent: true,
     });
     const targetGeometry = new THREE.SphereGeometry(targetRadius, 48, 32);
-    const targets = Array.from({ length: 3 }, () => {
+    const targets = Array.from({ length: modeConfig.targetCount }, () => {
       const targetMaterial = createTargetMaterial();
       const target = new THREE.Mesh(targetGeometry, targetMaterial);
       target.castShadow = true;
@@ -1465,9 +1558,105 @@ export function useGrid3x3Training() {
       renderer.domElement.style.transform = `translate3d(${offsetX.toFixed(2)}px, ${offsetY.toFixed(2)}px, 0) rotate(${rotation.toFixed(3)}deg)`;
     };
 
+    const updateTrackingTarget = (frameNow: number, deltaMs: number) => {
+      if (modeId !== "tracking" || phaseRef.current !== "running" || !gameStateRef.current.isRunning) {
+        return;
+      }
+
+      const target = targetRefs.current[0];
+      if (!target?.visible) {
+        return;
+      }
+
+      if (frameNow >= (target.userData.nextTurnAt ?? 0)) {
+        const direction = Math.random() > 0.46 ? 1 : -1;
+        target.userData.velocityX = direction * THREE.MathUtils.randFloat(1.25, 2.45);
+        target.userData.velocityY = THREE.MathUtils.randFloat(-0.72, 0.72);
+        target.userData.nextTurnAt = frameNow + THREE.MathUtils.randFloat(520, 1350);
+      }
+
+      const deltaSeconds = deltaMs / 1000;
+      target.position.x += (target.userData.velocityX ?? 1.8) * deltaSeconds;
+      target.position.y += (target.userData.velocityY ?? 0) * deltaSeconds;
+
+      if (target.position.x > trackingMovementBounds.x || target.position.x < -trackingMovementBounds.x) {
+        target.position.x = THREE.MathUtils.clamp(target.position.x, -trackingMovementBounds.x, trackingMovementBounds.x);
+        target.userData.velocityX = -(target.userData.velocityX ?? 1.8);
+      }
+
+      if (target.position.y > trackingMovementBounds.y || target.position.y < -trackingMovementBounds.y) {
+        target.position.y = THREE.MathUtils.clamp(target.position.y, -trackingMovementBounds.y, trackingMovementBounds.y);
+        target.userData.velocityY = -(target.userData.velocityY ?? 0.35);
+      }
+    };
+
+    const sampleTrackingAim = () => {
+      if (modeId !== "tracking" || phaseRef.current !== "running") {
+        return;
+      }
+
+      const gameState = gameStateRef.current;
+      raycaster.setFromCamera(center, camera);
+      const intersections = raycaster.intersectObjects(targetRefs.current, false);
+      const isOnTarget = Boolean(intersections.find((intersection: any) => intersection.object.visible));
+      const elapsedMs = gameState.durationMs - gameState.remainingMs;
+      const bucketIndex = Math.min(
+        gameState.timeline.length - 1,
+        Math.max(0, Math.floor(elapsedMs / 1000)),
+      );
+      const bucket = gameState.timeline[bucketIndex];
+
+      bucket.shots += 1;
+
+      if (isOnTarget) {
+        gameState.hits += 1;
+        bucket.hits += 1;
+        bucket.reactionSamples += 1;
+      } else {
+        gameState.misses += 1;
+      }
+    };
+
+    const updateTrackingHitFeedback = () => {
+      if (modeId !== "tracking") {
+        return;
+      }
+
+      const target = targetRefs.current[0];
+      if (!target?.visible) {
+        return;
+      }
+
+      const isActiveTracking = phaseRef.current === "running" && gameStateRef.current.isRunning;
+      const material = target.material;
+      const defaultColor = targetSettingsRef.current.color;
+
+      if (!isActiveTracking) {
+        material.color.set(defaultColor);
+        material.emissive.set(defaultColor);
+        return;
+      }
+
+      raycaster.setFromCamera(center, camera);
+      const intersections = raycaster.intersectObject(target, false);
+      const isOnTarget = intersections.some((intersection: any) => intersection.object.visible);
+      const nextColor = isOnTarget ? trackingHitColor : defaultColor;
+
+      material.color.set(nextColor);
+      material.emissive.set(nextColor);
+    };
+
     const updateGameLogic = (deltaMs: number) => {
       const gameState = gameStateRef.current;
       gameState.remainingMs = Math.max(0, gameState.remainingMs - deltaMs);
+      if (modeId === "tracking") {
+        gameState.trackingSampleAccumulatorMs += deltaMs;
+
+        while (gameState.trackingSampleAccumulatorMs >= trackingSampleIntervalMs) {
+          sampleTrackingAim();
+          gameState.trackingSampleAccumulatorMs -= trackingSampleIntervalMs;
+        }
+      }
       logicFpsSampleRef.current.ticks += 1;
     };
 
@@ -1588,9 +1777,14 @@ export function useGrid3x3Training() {
         } else if (frameNow - remainingUiSampleRef.current.lastUpdatedAt >= remainingUiUpdateIntervalMs) {
           remainingUiSampleRef.current.lastUpdatedAt = frameNow;
           setRemainingMs(gameState.remainingMs);
+          if (modeId === "tracking") {
+            syncStats();
+          }
         }
       }
 
+      updateTrackingTarget(frameNow, renderDeltaMs);
+      updateTrackingHitFeedback();
       updateAimAssist(renderDeltaMs);
       updateTargetFadeIn(frameNow);
       updateHitEffects(frameNow);
@@ -1634,6 +1828,11 @@ export function useGrid3x3Training() {
         !gameStateRef.current.isRunning ||
         document.pointerLockElement !== renderer.domElement
       ) {
+        return;
+      }
+
+      if (modeId === "tracking") {
+        playCrosshairSpread();
         return;
       }
 
@@ -1712,7 +1911,17 @@ export function useGrid3x3Training() {
       accentMaterial.dispose();
       mount.removeChild(renderer.domElement);
     };
-  }, [finishTraining, pauseTraining, playCrosshairSpread, playHitSound, playMissSound, replaceHitTarget, syncStats]);
+  }, [
+    finishTraining,
+    modeConfig.targetCount,
+    modeId,
+    pauseTraining,
+    playCrosshairSpread,
+    playHitSound,
+    playMissSound,
+    replaceHitTarget,
+    syncStats,
+  ]);
 
   const shots = stats.hits + stats.misses;
   const accuracy = shots > 0 ? Math.round((stats.hits / shots) * 100) : 0;
@@ -1746,6 +1955,7 @@ export function useGrid3x3Training() {
 
   return {
     t,
+    modeNamespace: modeConfig.namespace,
     mountRef,
     phase,
     countdown,

@@ -24,7 +24,7 @@
     "title": "Session Details"
   },
   "empty": {
-    "description": "After you complete one Grid 3x3 session, local history will be saved automatically.",
+    "description": "After you complete any training session, local history will be saved automatically.",
     "detailDescription": "Complete a session to review hits, accuracy, average reaction, and distribution charts here.",
     "detailTitle": "No Session Details Yet",
     "modeDescription": "Complete a session to show this mode's trend chart and summary stats.",
@@ -52,7 +52,7 @@
     "tracking": "Tracking"
   },
   "recent": {
-    "subtitle": "Sorted by completion time across modes. Click a row to inspect details.",
+    "subtitle": "Sorted within the current mode and date filters. Click a row to inspect details.",
     "title": "Recent Training Records"
   },
   "pagination": {

@@ -24,7 +24,7 @@
     "title": "单次记录详情"
   },
   "empty": {
-    "description": "完成一次九宫格训练后，系统会自动保存本地历史记录。",
+    "description": "完成任意模式训练后，系统会自动保存本地历史记录。",
     "detailDescription": "完成训练后可在这里复盘命中、命中率、平均反应和分布曲线。",
     "detailTitle": "还没有可查看的详情",
     "modeDescription": "完成一次训练后，这里会展示该模式的趋势图和统计数据。",
@@ -52,7 +52,7 @@
     "tracking": "跟枪训练"
   },
   "recent": {
-    "subtitle": "跨模式按完成时间排序，点击可查看详情。",
+    "subtitle": "按当前模式与日期筛选排序，点击可查看详情。",
     "title": "近期训练记录"
   },
   "pagination": {

@@ -31,6 +31,8 @@ export function App() {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/sounds/editor/:assetId" element={<SoundEditorPage />} />
           <Route path="/training/grid-3x3" element={<TrainingPage />} />
+          <Route path="/training/micro-adjustment" element={<TrainingPage />} />
+          <Route path="/training/tracking" element={<TrainingPage />} />
         </Routes>
       </div>
     </Suspense>

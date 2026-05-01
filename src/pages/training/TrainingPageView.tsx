@@ -15,6 +15,7 @@ interface TrainingPageViewProps {
 export function TrainingPageView({ viewModel }: TrainingPageViewProps) {
   const {
     t,
+    modeNamespace,
     mountRef,
     phase,
     countdown,
@@ -39,6 +40,7 @@ export function TrainingPageView({ viewModel }: TrainingPageViewProps) {
     setIsSettingsOpen,
     guardOverlayAction,
   } = viewModel;
+  const modeKey = modeNamespace;
 
   return (
     <main className={styles.page}>
@@ -114,7 +116,7 @@ export function TrainingPageView({ viewModel }: TrainingPageViewProps) {
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="border-white/10 bg-black/30 px-4 py-1.5 backdrop-blur-xl">
             <Crosshair className="h-3.5 w-3.5 text-primary" />
-            {t("grid3x3.mode", { defaultValue: "Grid 3x3" })}
+            {t(`${modeKey}.mode`, { defaultValue: "Grid 3x3" })}
           </Badge>
           <Badge variant="outline" className="border-white/10 bg-black/30 px-4 py-1.5 backdrop-blur-xl">
             FPS {fps.toFixed(2)}
@@ -125,15 +127,15 @@ export function TrainingPageView({ viewModel }: TrainingPageViewProps) {
         </div>
 
         <div className="absolute left-1/2 top-0 flex -translate-x-1/2 items-center gap-3">
-          <HudStat icon={Timer} label={t("grid3x3.time", { defaultValue: "剩余时间" })} value={`${Math.ceil(remainingMs / 1000)}s`} />
-          <HudStat label={t("grid3x3.hits", { defaultValue: "命中" })} value={stats.hits} />
-          <HudStat label={t("grid3x3.accuracy", { defaultValue: "命中率" })} value={`${accuracy}%`} />
+          <HudStat icon={Timer} label={t(`${modeKey}.time`, { defaultValue: "剩余时间" })} value={`${Math.ceil(remainingMs / 1000)}s`} />
+          <HudStat label={t(`${modeKey}.hits`, { defaultValue: "命中" })} value={stats.hits} />
+          <HudStat label={t(`${modeKey}.accuracy`, { defaultValue: "命中率" })} value={`${accuracy}%`} />
         </div>
 
         <Button asChild variant="outline" className="bg-black/30 backdrop-blur-xl">
           <Link to="/">
             <ArrowLeft className="h-4 w-4" />
-            {t("grid3x3.backHome", { defaultValue: "返回首页" })}
+            {t(`${modeKey}.backHome`, { defaultValue: "返回首页" })}
           </Link>
         </Button>
       </div>
@@ -145,20 +147,20 @@ export function TrainingPageView({ viewModel }: TrainingPageViewProps) {
               <MousePointer2 className="h-8 w-8" />
             </div>
             <h1 className="text-3xl font-bold tracking-tight">
-              {t("grid3x3.title", { defaultValue: "九宫格射击训练" })}
+              {t(`${modeKey}.title`, { defaultValue: "九宫格射击训练" })}
             </h1>
             <p className="mt-3 text-muted-foreground">
-              {t("grid3x3.subtitle", {
+              {t(`${modeKey}.subtitle`, {
                 defaultValue: "在固定九宫格中快速定位并命中目标。",
               })}
             </p>
             <p className="mt-2 text-sm text-muted-foreground/70">
-              {t("grid3x3.clickToStart", {
+              {t(`${modeKey}.clickToStart`, {
                 defaultValue: "点击开始后会锁定鼠标。移动鼠标瞄准，左键射击。",
               })}
             </p>
             <Button size="lg" onClick={startTraining} className="mt-8 px-10 py-6">
-              {t("grid3x3.start", { defaultValue: "开始训练" })}
+              {t(`${modeKey}.start`, { defaultValue: "开始训练" })}
             </Button>
           </div>
         </div>
@@ -182,20 +184,20 @@ export function TrainingPageView({ viewModel }: TrainingPageViewProps) {
                 </div>
                 <div>
                   <div className="text-sm uppercase tracking-[0.24em] text-primary">
-                    {t("grid3x3.complete", { defaultValue: "训练完成" })}
+                    {t(`${modeKey}.complete`, { defaultValue: "训练完成" })}
                   </div>
                   <h2 className="text-2xl font-bold tracking-tight">
-                    {t("grid3x3.title", { defaultValue: "九宫格射击训练" })}
+                    {t(`${modeKey}.title`, { defaultValue: "九宫格射击训练" })}
                   </h2>
                 </div>
               </div>
 
               <div className="mb-6 grid gap-3 md:grid-cols-4">
-                <ResultStat label={t("grid3x3.score", { defaultValue: "得分" })} value={score} />
-                <ResultStat label={t("grid3x3.hits", { defaultValue: "命中" })} value={stats.hits} />
-                <ResultStat label={t("grid3x3.accuracy", { defaultValue: "命中率" })} value={`${accuracy}%`} />
+                <ResultStat label={t(`${modeKey}.score`, { defaultValue: "得分" })} value={score} />
+                <ResultStat label={t(`${modeKey}.hits`, { defaultValue: "命中" })} value={stats.hits} />
+                <ResultStat label={t(`${modeKey}.accuracy`, { defaultValue: "命中率" })} value={`${accuracy}%`} />
                 <ResultStat
-                  label={t("grid3x3.averageReaction", { defaultValue: "平均反应" })}
+                  label={t(`${modeKey}.averageReaction`, { defaultValue: "平均反应" })}
                   value={stats.averageReactionMs ? `${stats.averageReactionMs}ms` : "-"}
                 />
               </div>
@@ -206,9 +208,9 @@ export function TrainingPageView({ viewModel }: TrainingPageViewProps) {
                   accuracy={resultTrend.accuracy}
                   hits={resultTrend.hits}
                   averageReaction={resultTrend.averageReaction}
-                  accuracyLabel={t("grid3x3.accuracyTrend", { defaultValue: "命中率分布" })}
-                  hitsLabel={t("grid3x3.hitTrend", { defaultValue: "命中分布" })}
-                  averageReactionLabel={t("grid3x3.reactionTrend", {
+                  accuracyLabel={t(`${modeKey}.accuracyTrend`, { defaultValue: "命中率分布" })}
+                  hitsLabel={t(`${modeKey}.hitTrend`, { defaultValue: "命中分布" })}
+                  averageReactionLabel={t(`${modeKey}.reactionTrend`, {
                     defaultValue: "平均反应分布",
                   })}
                 />
@@ -218,10 +220,10 @@ export function TrainingPageView({ viewModel }: TrainingPageViewProps) {
             <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-6 shadow-[0_24px_90px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-2xl">
               <div className="mb-5 text-center">
                 <div className="text-sm uppercase tracking-[0.24em] text-primary">
-                  {t("grid3x3.complete", { defaultValue: "训练完成" })}
+                  {t(`${modeKey}.complete`, { defaultValue: "训练完成" })}
                 </div>
                 <div className="mt-2 text-2xl font-bold">
-                  {t("grid3x3.mode", { defaultValue: "Grid 3x3" })}
+                  {t(`${modeKey}.mode`, { defaultValue: "Grid 3x3" })}
                 </div>
               </div>
               <div
@@ -231,7 +233,7 @@ export function TrainingPageView({ viewModel }: TrainingPageViewProps) {
               >
                 <Button size="lg" onClick={restartTraining} disabled={!areOverlayActionsEnabled} className="py-6">
                   <RotateCcw className="h-4 w-4" />
-                  {t("grid3x3.restart", { defaultValue: "重新开始" })}
+                  {t(`${modeKey}.restart`, { defaultValue: "重新开始" })}
                 </Button>
                 <Button
                   size="lg"
@@ -241,12 +243,12 @@ export function TrainingPageView({ viewModel }: TrainingPageViewProps) {
                   className="py-6"
                 >
                   <Settings className="h-4 w-4" />
-                  {t("grid3x3.settings", { defaultValue: "设置" })}
+                  {t(`${modeKey}.settings`, { defaultValue: "设置" })}
                 </Button>
                 <Button asChild size="lg" variant="outline" className="py-6">
                   <Link to="/" aria-disabled={!areOverlayActionsEnabled} tabIndex={areOverlayActionsEnabled ? undefined : -1}>
                     <ArrowLeft className="h-4 w-4" />
-                    {t("grid3x3.backHome", { defaultValue: "返回首页" })}
+                    {t(`${modeKey}.backHome`, { defaultValue: "返回首页" })}
                   </Link>
                 </Button>
               </div>
@@ -260,10 +262,10 @@ export function TrainingPageView({ viewModel }: TrainingPageViewProps) {
           <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-white/[0.06] p-6 shadow-[0_24px_90px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-2xl">
             <div className="mb-5 text-center">
               <div className="text-sm uppercase tracking-[0.24em] text-primary">
-                {t("grid3x3.paused", { defaultValue: "已暂停" })}
+                {t(`${modeKey}.paused`, { defaultValue: "已暂停" })}
               </div>
               <div className="mt-2 text-2xl font-bold">
-                {t("grid3x3.title", { defaultValue: "九宫格射击训练" })}
+                {t(`${modeKey}.title`, { defaultValue: "九宫格射击训练" })}
               </div>
             </div>
             <div
@@ -272,7 +274,7 @@ export function TrainingPageView({ viewModel }: TrainingPageViewProps) {
               onPointerDownCapture={guardOverlayAction}
             >
               <Button size="lg" onClick={resumeTraining} disabled={!areOverlayActionsEnabled} className="py-6">
-                {t("grid3x3.continue", { defaultValue: "继续游戏" })}
+                {t(`${modeKey}.continue`, { defaultValue: "继续游戏" })}
               </Button>
               <Button
                 size="lg"
@@ -282,7 +284,7 @@ export function TrainingPageView({ viewModel }: TrainingPageViewProps) {
                 className="py-6"
               >
                 <RotateCcw className="h-4 w-4" />
-                {t("grid3x3.restart", { defaultValue: "重新开始" })}
+                {t(`${modeKey}.restart`, { defaultValue: "重新开始" })}
               </Button>
               <Button
                 size="lg"
@@ -292,12 +294,12 @@ export function TrainingPageView({ viewModel }: TrainingPageViewProps) {
                 className="py-6"
               >
                 <Settings className="h-4 w-4" />
-                {t("grid3x3.settings", { defaultValue: "设置" })}
+                {t(`${modeKey}.settings`, { defaultValue: "设置" })}
               </Button>
               <Button asChild size="lg" variant="outline" className="py-6">
                 <Link to="/" aria-disabled={!areOverlayActionsEnabled} tabIndex={areOverlayActionsEnabled ? undefined : -1}>
                   <ArrowLeft className="h-4 w-4" />
-                  {t("grid3x3.backHome", { defaultValue: "返回首页" })}
+                  {t(`${modeKey}.backHome`, { defaultValue: "返回首页" })}
                 </Link>
               </Button>
             </div>
@@ -312,7 +314,7 @@ export function TrainingPageView({ viewModel }: TrainingPageViewProps) {
             size="default"
             onClick={() => setIsSettingsOpen(false)}
             className="absolute right-6 top-6 z-20 bg-black/35 backdrop-blur-xl"
-            aria-label={t("grid3x3.closeSettings", { defaultValue: "关闭设置" })}
+            aria-label={t(`${modeKey}.closeSettings`, { defaultValue: "关闭设置" })}
           >
             <X className="h-4 w-4" />
           </Button>
