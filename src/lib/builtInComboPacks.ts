@@ -44,11 +44,23 @@ export async function ensureBuiltInComboPacks(custom: CustomSoundSettings) {
 }
 
 async function ensureBuiltInComboPacksInner(custom: CustomSoundSettings) {
+  const sourceById = new Map(builtInComboPackSources.map((source) => [source.id, source] as const));
+  const renamedPacks = custom.comboMusic.packs.map((pack) => {
+    if (!pack.builtIn) {
+      return pack;
+    }
+    const source = sourceById.get(pack.id);
+    if (!source || pack.name === source.name) {
+      return pack;
+    }
+    return { ...pack, name: source.name };
+  });
+
   const existingBuiltInIds = new Set(custom.comboMusic.packs.filter((pack) => pack.builtIn).map((pack) => pack.id));
   const missingSources = builtInComboPackSources.filter((source) => !existingBuiltInIds.has(source.id));
 
   if (missingSources.length === 0) {
-    const normalizedPacks = sortAndNormalizeComboPacks(custom.comboMusic.packs);
+    const normalizedPacks = sortAndNormalizeComboPacks(renamedPacks);
     if (normalizedPacks.every((pack, index) => pack === custom.comboMusic.packs[index])) {
       return null;
     }
@@ -93,7 +105,7 @@ async function ensureBuiltInComboPacksInner(custom: CustomSoundSettings) {
     });
   }
 
-  const nextPacks = sortAndNormalizeComboPacks([...custom.comboMusic.packs, ...importedPacks]);
+  const nextPacks = sortAndNormalizeComboPacks([...renamedPacks, ...importedPacks]);
   const activePack =
     nextPacks.find((pack) => pack.id === custom.comboMusic.activePackId) ??
     nextPacks.find((pack) => pack.sourceAssetId === custom.comboMusic.sourceAssetId) ??
