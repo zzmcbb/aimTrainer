@@ -22,6 +22,9 @@ import {
   importComboSoundPackArchive,
 } from "@/lib/comboSoundPackArchive";
 import {
+  sortAndNormalizeComboPacks,
+} from "@/lib/builtInComboPacks";
+import {
   createSoundAssetFromBlob,
   createId,
   deleteSoundAsset,
@@ -212,6 +215,7 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
       }
 
       const pack: ComboSoundPack = {
+        builtIn: false,
         clips: importedPack.clips
           .map((clip) => ({
             ...clip,
@@ -235,7 +239,7 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
           enabled: shouldActivateImportedPack ? true : sound.custom.comboMusic.enabled,
           mode: "manualClips",
           overflowBehavior: "restart",
-          packs: [pack, ...sound.custom.comboMusic.packs],
+          packs: sortAndNormalizeComboPacks([pack, ...sound.custom.comboMusic.packs]),
           sourceAssetId: shouldActivateImportedPack ? pack.sourceAssetId : sound.custom.comboMusic.sourceAssetId,
         },
         hitFeedback: {
@@ -368,6 +372,12 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
       return;
     }
 
+    const targetPack = sound.custom.comboMusic.packs.find((pack) => pack.id === packId);
+    if (targetPack?.builtIn) {
+      setConfirmingDeleteId(null);
+      return;
+    }
+
     const packs = sound.custom.comboMusic.packs.filter((pack) => pack.id !== packId);
     const nextActivePack = activePackId === packId ? (packs[0] ?? null) : (packs.find((pack) => pack.id === activePackId) ?? null);
 
@@ -387,6 +397,10 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
   const deleteCurrentComboAsset = () => {
     const sourceAssetId = sound.custom.comboMusic.sourceAssetId;
     if (!sourceAssetId) {
+      return;
+    }
+    if (sound.custom.comboMusic.packs.some((pack) => pack.sourceAssetId === sourceAssetId && pack.builtIn)) {
+      setConfirmingDeleteId(null);
       return;
     }
 
@@ -586,7 +600,7 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
                             {pack.clips.length} 段音效
                           </div>
                         </button>
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        <div className={cn("grid grid-cols-2 gap-2", pack.builtIn ? "sm:grid-cols-3" : "sm:grid-cols-4")}>
                           <Button
                             type="button"
                             variant={pack.id === activePackId ? "default" : "outline"}
@@ -623,25 +637,27 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
                             <Download className="h-4 w-4" />
                             导出
                           </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            disabled={comboPackListDisabled}
-                            onBlur={() => {
-                              if (confirmingDeleteId === pack.id) {
-                                setConfirmingDeleteId(null);
-                              }
-                            }}
-                            onClick={() => deletePack(pack.id)}
-                            title={confirmingDeleteId === pack.id ? "再次点击确认删除" : "删除整合包"}
-                            className={cn(
-                              "min-w-0 px-2",
-                              confirmingDeleteId === pack.id && "border-red-400/40 bg-red-500/12 text-red-100 hover:bg-red-500/18",
-                            )}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            {confirmingDeleteId === pack.id ? "确认删除" : "删除"}
-                          </Button>
+                          {!pack.builtIn && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              disabled={comboPackListDisabled}
+                              onBlur={() => {
+                                if (confirmingDeleteId === pack.id) {
+                                  setConfirmingDeleteId(null);
+                                }
+                              }}
+                              onClick={() => deletePack(pack.id)}
+                              title={confirmingDeleteId === pack.id ? "再次点击确认删除" : "删除整合包"}
+                              className={cn(
+                                "min-w-0 px-2",
+                                confirmingDeleteId === pack.id && "border-red-400/40 bg-red-500/12 text-red-100 hover:bg-red-500/18",
+                              )}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              {confirmingDeleteId === pack.id ? "确认删除" : "删除"}
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>

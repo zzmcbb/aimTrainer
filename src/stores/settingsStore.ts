@@ -6,6 +6,7 @@ import {
   type ComboOverflowBehavior,
   type ComboResumeBehavior,
   type ComboSoundPack,
+  sortComboSoundPacks,
   createDefaultCustomSoundSettings,
   type CustomSoundSettings,
   type HitFeedbackSource,
@@ -238,6 +239,7 @@ function readComboSoundPack(value: unknown): ComboSoundPack | null {
     : [];
 
   return {
+    builtIn: readBoolean(item.builtIn, false),
     clips,
     id: item.id,
     name: readString(item.name, `连击整合包 ${clips.length || 1}`),
@@ -295,7 +297,7 @@ function readCustomSoundSettings(value: unknown): CustomSoundSettings {
     })
     .filter((item: ComboMusicClip | null): item is ComboMusicClip => Boolean(item));
   const comboPacks = Array.isArray(comboMusic.packs)
-    ? comboMusic.packs.map(readComboSoundPack).filter((item): item is ComboSoundPack => Boolean(item))
+    ? sortComboSoundPacks(comboMusic.packs.map(readComboSoundPack).filter((item): item is ComboSoundPack => Boolean(item)))
     : [];
   const activePackId =
     typeof comboMusic.activePackId === "string" && comboPacks.some((pack) => pack.id === comboMusic.activePackId)

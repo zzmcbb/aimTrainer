@@ -4,6 +4,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/home/GlassCard";
 import { ParallaxBackground } from "@/components/home/ParallaxBackground";
+import { sortAndNormalizeComboPacks } from "@/lib/builtInComboPacks";
 import { createId, getSoundAsset, type ComboMusicClip, type SoundAsset, type SoundClipRef } from "@/lib/soundAssets";
 import { cn } from "@/lib/utils";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -446,15 +447,14 @@ export function SoundEditorPage() {
       ? sound.custom.comboMusic.packs.find((pack) => pack.id === packId)
       : sound.custom.comboMusic.packs.find((pack) => pack.sourceAssetId === asset.id);
     const pack = {
+      builtIn: existingPack?.builtIn ?? false,
       clips,
       id: existingPack?.id ?? createId("combo_pack"),
       name: packageName.trim() || existingPack?.name || `${asset.name.replace(/\.[^.]+$/, "")} 整合包`,
       sourceAssetId: asset.id,
       updatedAt: Date.now(),
     };
-    const packs = [...sound.custom.comboMusic.packs.filter((item) => item.id !== pack.id), pack].sort(
-      (first, second) => second.updatedAt - first.updatedAt,
-    );
+    const packs = sortAndNormalizeComboPacks([...sound.custom.comboMusic.packs.filter((item) => item.id !== pack.id), pack]);
     const shouldActivatePack = !packId || sound.custom.comboMusic.activePackId === pack.id || !sound.custom.comboMusic.activePackId;
     const nextActivePackId = shouldActivatePack ? pack.id : sound.custom.comboMusic.activePackId;
     const nextActivePack = packs.find((item) => item.id === nextActivePackId) ?? pack;

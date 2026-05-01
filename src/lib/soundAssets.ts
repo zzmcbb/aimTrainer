@@ -31,6 +31,7 @@ export interface ComboMusicClip {
 }
 
 export interface ComboSoundPack {
+  builtIn?: boolean;
   clips: ComboMusicClip[];
   id: string;
   name: string;
@@ -231,6 +232,15 @@ export async function createSoundAssetFromBlob({ blob, name, type }: CreateSound
 
   await saveSoundAsset(asset);
   return asset;
+}
+
+export function sortComboSoundPacks(packs: ComboSoundPack[]) {
+  return [...packs].sort((first, second) => {
+    if (Boolean(first.builtIn) !== Boolean(second.builtIn)) {
+      return first.builtIn ? 1 : -1;
+    }
+    return second.updatedAt - first.updatedAt;
+  });
 }
 
 function createSoundAssetRecord({
