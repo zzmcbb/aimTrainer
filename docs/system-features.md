@@ -22,7 +22,7 @@ Aim Trainer 当前 MVP 覆盖以下功能域：
 
 主要功能：
 
-- 展示产品名称 Sightline。
+- 展示产品名称 aimTrainer。
 - 展示 Aim Trainer 定位。
 - 提供“选择模式”入口。
 - 提供“查看训练历史”入口。

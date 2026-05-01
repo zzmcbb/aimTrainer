@@ -21,7 +21,7 @@ export function SettingsPageView({ viewModel }: SettingsPageViewProps) {
         <div className={styles.headerWrapper}>
           <PageHeader
             actionLabel={t("actions.backHome", { defaultValue: "返回首页" })}
-            brand={t("page.brand", { defaultValue: "Sightline" })}
+            brand={t("page.brand", { defaultValue: "aimTrainer" })}
             icon={Crosshair}
             title={t("page.title", { defaultValue: "设置" })}
           />

@@ -21,7 +21,7 @@ export function ModeSelectionPageView({ viewModel }: ModeSelectionPageViewProps)
       <div className={styles.content}>
         <PageHeader
           actionLabel={t("actions.backHome", { defaultValue: "返回首页" })}
-          brand={t("brand.name", { defaultValue: "Sightline" })}
+          brand={t("brand.name", { defaultValue: "aimTrainer" })}
           description={t("modeSelection.description", {
             defaultValue: "选择一种训练模式，针对不同瞄准能力进行专项练习。",
           })}

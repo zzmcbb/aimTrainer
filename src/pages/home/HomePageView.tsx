@@ -33,7 +33,7 @@ export function HomePageView({ viewModel }: HomePageViewProps) {
 
                 <div className="flex flex-col items-start">
                   <span className="text-2xl font-bold tracking-tight text-foreground">
-                    {t("brand.name", { defaultValue: "Sightline" })}
+                    {t("brand.name", { defaultValue: "aimTrainer" })}
                   </span>
                   <span className="text-xs uppercase tracking-[0.28em] text-muted-foreground/60">
                     {t("brand.tagline", { defaultValue: "Aim Trainer" })}
