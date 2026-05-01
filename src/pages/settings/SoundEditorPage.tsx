@@ -7,6 +7,7 @@ import { ParallaxBackground } from "@/components/home/ParallaxBackground";
 import { createId, getSoundAsset, type ComboMusicClip, type SoundAsset, type SoundClipRef } from "@/lib/soundAssets";
 import { cn } from "@/lib/utils";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { activeSettingsSectionKey } from "./menus/settingsMenuStorage";
 
 type DragMode = "create" | "left" | "right" | "move";
 type ShortClipTarget = "hit" | "miss";
@@ -14,7 +15,6 @@ type ShortClipTarget = "hit" | "miss";
 interface DraftClip extends ComboMusicClip {}
 
 const minClipMs = 20;
-const activeSettingsSectionKey = "aim-trainer-active-settings-section";
 
 export function SoundEditorPage() {
   const { assetId } = useParams();
