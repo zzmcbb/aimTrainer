@@ -89,6 +89,7 @@ export function ClipRow({
 export function ComboAssetCard({
   asset,
   confirmDeleteId,
+  disabled = false,
   emptyLabel,
   isConfirmingDelete,
   onDelete,
@@ -96,13 +97,19 @@ export function ComboAssetCard({
 }: {
   asset?: SoundAsset | null;
   confirmDeleteId: string | null;
+  disabled?: boolean;
   emptyLabel: string;
   isConfirmingDelete: boolean;
   onDelete: () => void;
   onEdit: () => void;
 }) {
   return (
-    <div className="grid min-h-12 gap-3 rounded-xl border border-white/10 bg-black/20 p-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+    <div
+      className={cn(
+        "grid min-h-12 gap-3 rounded-xl border border-white/10 bg-black/20 p-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center",
+        disabled && "opacity-55",
+      )}
+    >
       <div className="flex min-w-0 items-center gap-3">
         <Music2 className="h-4 w-4 shrink-0 text-primary" />
         <div className="min-w-0">
@@ -112,14 +119,14 @@ export function ComboAssetCard({
       </div>
       {asset && (
         <div className="flex flex-wrap gap-2 lg:justify-end">
-          <Button type="button" variant="outline" onClick={onEdit} title="编辑整合包" className="min-w-20">
+          <Button type="button" variant="outline" disabled={disabled} onClick={onEdit} title="编辑整合包" className="min-w-20">
             <Pencil className="h-4 w-4" />
             编辑
           </Button>
           <Button
             type="button"
             variant="outline"
-            disabled={!confirmDeleteId}
+            disabled={disabled || !confirmDeleteId}
             onBlur={() => undefined}
             onClick={onDelete}
             title={isConfirmingDelete ? "再次点击确认删除" : "删除整合包"}

@@ -337,32 +337,28 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
       },
     });
   };
+  const comboPackListDisabled = !sound.enabled || !sound.custom.comboMusic.enabled;
   const selectPack = (packId: string) => {
     const pack = sound.custom.comboMusic.packs.find((item) => item.id === packId);
-    if (!pack) {
+    if (!pack || comboPackListDisabled) {
       return;
     }
 
-    onChange({
-      custom: {
-        ...sound.custom,
-        comboMusic: {
-          ...sound.custom.comboMusic,
-          activePackId: pack.id,
-          clips: pack.clips,
-          enabled: true,
-          mode: "manualClips",
-          overflowBehavior: "restart",
-          sourceAssetId: pack.sourceAssetId,
-        },
-        hitFeedback: {
-          ...sound.custom.hitFeedback,
-          enabled: false,
-          playWithComboMusic: false,
-        },
+    updateCustom({
+      ...sound.custom,
+      comboMusic: {
+        ...sound.custom.comboMusic,
+        activePackId: pack.id,
+        clips: pack.clips,
+        mode: "manualClips",
+        overflowBehavior: "restart",
+        sourceAssetId: pack.sourceAssetId,
       },
-      customEnabled: true,
-      enabled: true,
+      hitFeedback: {
+        ...sound.custom.hitFeedback,
+        enabled: false,
+        playWithComboMusic: false,
+      },
     });
     setConfirmingDeleteId(null);
   };
@@ -551,6 +547,7 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
                 <ComboAssetCard
                   asset={comboAsset}
                   confirmDeleteId={sound.custom.comboMusic.sourceAssetId ? `asset:${sound.custom.comboMusic.sourceAssetId}` : null}
+                  disabled={comboPackListDisabled}
                   emptyLabel="还没有选择连续击中整合包"
                   isConfirmingDelete={
                     Boolean(sound.custom.comboMusic.sourceAssetId) &&
@@ -570,10 +567,16 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
                         pack.id === activePackId
                           ? "border-primary/35 bg-primary/10"
                           : "border-white/10 bg-black/20",
+                        comboPackListDisabled && "opacity-55",
                       )}
                     >
                       <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,auto)] xl:items-center">
-                        <button type="button" className="min-w-0 text-left" onClick={() => selectPack(pack.id)}>
+                        <button
+                          type="button"
+                          className="min-w-0 text-left disabled:cursor-not-allowed"
+                          disabled={comboPackListDisabled}
+                          onClick={() => selectPack(pack.id)}
+                        >
                           <div className="flex items-center gap-2 text-sm font-medium">
                             {pack.id === activePackId && <CheckCircle2 className="h-4 w-4 text-primary" />}
                             <span className="truncate">{pack.name}</span>
@@ -586,6 +589,7 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
                           <Button
                             type="button"
                             variant={pack.id === activePackId ? "default" : "outline"}
+                            disabled={comboPackListDisabled}
                             className="min-w-0 px-2"
                             onClick={() => selectPack(pack.id)}
                             title={pack.id === activePackId ? "当前整合包" : "切换到此整合包"}
@@ -596,7 +600,7 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
                           <Button
                             type="button"
                             variant="outline"
-                            disabled={!sound.enabled}
+                            disabled={comboPackListDisabled}
                             onClick={() => {
                               setConfirmingDeleteId(null);
                               navigate(`/settings/sounds/editor/${pack.sourceAssetId}?packId=${pack.id}`);
@@ -610,7 +614,7 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
                           <Button
                             type="button"
                             variant="outline"
-                            disabled={!assetMap[pack.sourceAssetId]}
+                            disabled={comboPackListDisabled || !assetMap[pack.sourceAssetId]}
                             onClick={() => void exportComboPack(pack)}
                             title="导出整合包"
                             className="min-w-0 px-2"
@@ -621,6 +625,7 @@ export function SoundSettingsPanel({ onChange, sound }: SoundSettingsPanelProps)
                           <Button
                             type="button"
                             variant="outline"
+                            disabled={comboPackListDisabled}
                             onBlur={() => {
                               if (confirmingDeleteId === pack.id) {
                                 setConfirmingDeleteId(null);
