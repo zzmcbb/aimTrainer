@@ -92,7 +92,7 @@ export function SoundEditorPage() {
 
     const requestedPack = packId ? sound.custom.comboMusic.packs.find((item) => item.id === packId) : null;
     if (requestedPack) {
-      setSavedDrafts(requestedPack.clips);
+      setSavedDrafts(resequenceDrafts(requestedPack.clips));
       setPackageName(requestedPack.name);
       return;
     }
@@ -100,14 +100,14 @@ export function SoundEditorPage() {
     if (!assetId || sound.custom.comboMusic.sourceAssetId !== assetId) {
       const pack = sound.custom.comboMusic.packs.find((item) => item.sourceAssetId === assetId);
       if (pack) {
-        setSavedDrafts(pack.clips);
+        setSavedDrafts(resequenceDrafts(pack.clips));
         setPackageName(pack.name);
       }
       return;
     }
 
     const pack = sound.custom.comboMusic.packs.find((item) => item.id === sound.custom.comboMusic.activePackId);
-    setSavedDrafts(pack?.clips ?? sound.custom.comboMusic.clips);
+    setSavedDrafts(resequenceDrafts(pack?.clips ?? sound.custom.comboMusic.clips));
     setPackageName(pack?.name ?? "");
   }, [
     assetId,
@@ -150,7 +150,7 @@ export function SoundEditorPage() {
   ]);
 
   const sortedDrafts = useMemo(
-    () => [...savedDrafts].sort((first, second) => first.index - second.index),
+    () => resequenceDrafts(savedDrafts),
     [savedDrafts],
   );
 
@@ -376,6 +376,16 @@ export function SoundEditorPage() {
     setSelectedSavedId(null);
   };
 
+  const removeSavedDraft = (clipId: string) => {
+    if (isShortClipEditor) {
+      return;
+    }
+
+    setSavedDrafts((clips) => resequenceDrafts(clips.filter((clip) => clip.id !== clipId)));
+    setDraft(null);
+    setSelectedSavedId(null);
+  };
+
   const applyShortClipToSettings = () => {
     if (!asset || !draft || !shortClipTarget) {
       return;
@@ -431,7 +441,7 @@ export function SoundEditorPage() {
       return;
     }
 
-    const clips = [...savedDrafts].sort((first, second) => first.index - second.index);
+    const clips = resequenceDrafts(savedDrafts);
     const existingPack = packId
       ? sound.custom.comboMusic.packs.find((pack) => pack.id === packId)
       : sound.custom.comboMusic.packs.find((pack) => pack.sourceAssetId === asset.id);
@@ -690,11 +700,12 @@ export function SoundEditorPage() {
                     )
                   }
                   onDelete={() => {
-                    if (!isShortClipEditor) {
-                      setSavedDrafts((clips) => clips.filter((clip) => clip.id !== draft.id));
+                    if (isShortClipEditor) {
+                      setDraft(null);
+                      setSelectedSavedId(null);
+                      return;
                     }
-                    setDraft(null);
-                    setSelectedSavedId(null);
+                    removeSavedDraft(draft.id);
                   }}
                   onSave={saveDraftToList}
                   onPlay={() => playRange(draft.id, draft.startMs, draft.endMs)}
@@ -711,9 +722,12 @@ export function SoundEditorPage() {
 
           {!isShortClipEditor && (
             <div className="min-h-0 rounded-2xl border border-white/10 bg-black/20 p-5">
-              <div className="mb-4 font-medium">连击片段</div>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="font-medium">连击片段</div>
+                <div className="shrink-0 text-xs text-muted-foreground">共 {sortedDrafts.length} 条音效</div>
+              </div>
               <div className="grid max-h-[560px] gap-3 overflow-y-auto pr-1 [scrollbar-color:rgba(255,255,255,0.24)_transparent] [scrollbar-width:thin]">
-                {savedDrafts.length === 0 ? (
+                {sortedDrafts.length === 0 ? (
                   <p className="text-sm text-muted-foreground">保存当前片段后，会在这里生成第 1 击、第 2 击到第 n 击。</p>
                 ) : (
                   sortedDrafts.map((clip) => (
@@ -1074,6 +1088,12 @@ function TimeRuler({ durationMs, zoom }: { durationMs: number; zoom: number }) {
 
 function nextSequenceIndex(drafts: DraftClip[]) {
   return Math.max(0, ...drafts.map((clip) => clip.index)) + 1;
+}
+
+function resequenceDrafts(drafts: DraftClip[]) {
+  return [...drafts]
+    .sort((first, second) => first.index - second.index)
+    .map((clip, index) => ({ ...clip, index: index + 1 }));
 }
 
 function readShortClipTarget(value: string | null): ShortClipTarget | null {
