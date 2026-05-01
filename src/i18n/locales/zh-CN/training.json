@@ -22,7 +22,8 @@
     "start": "开始训练",
     "subtitle": "在固定九宫格中快速定位并命中目标。",
     "time": "剩余时间",
-    "title": "九宫格射击训练"
+    "title": "九宫格射击训练",
+    "viewHistory": "查看历史记录"
   },
   "microAdjustment": {
     "accuracy": "命中率",
@@ -45,7 +46,8 @@
     "start": "开始训练",
     "subtitle": "围绕准星生成小目标，训练短距离修正和精确点击。",
     "time": "剩余时间",
-    "title": "微调训练"
+    "title": "微调训练",
+    "viewHistory": "查看历史记录"
   },
   "tracking": {
     "accuracy": "跟枪率",
@@ -68,6 +70,7 @@
     "start": "开始训练",
     "subtitle": "目标持续横向变速移动，训练稳定跟随和修正节奏。",
     "time": "剩余时间",
-    "title": "跟枪训练"
+    "title": "跟枪训练",
+    "viewHistory": "查看历史记录"
   }
 }

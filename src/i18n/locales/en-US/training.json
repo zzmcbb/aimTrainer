@@ -22,7 +22,8 @@
     "start": "Start Training",
     "subtitle": "Quickly locate and hit targets in a fixed 3x3 grid.",
     "time": "Time Left",
-    "title": "Grid Shooting Trainer"
+    "title": "Grid Shooting Trainer",
+    "viewHistory": "View History"
   },
   "microAdjustment": {
     "accuracy": "Accuracy",
@@ -45,7 +46,8 @@
     "start": "Start Training",
     "subtitle": "Small targets spawn near center to train short corrections and precise clicks.",
     "time": "Time Left",
-    "title": "Micro Adjustment"
+    "title": "Micro Adjustment",
+    "viewHistory": "View History"
   },
   "tracking": {
     "accuracy": "Tracking Rate",
@@ -68,6 +70,7 @@
     "start": "Start Training",
     "subtitle": "A target strafes with speed changes to train smooth tracking and corrections.",
     "time": "Time Left",
-    "title": "Tracking"
+    "title": "Tracking",
+    "viewHistory": "View History"
   }
 }

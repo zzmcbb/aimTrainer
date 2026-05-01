@@ -1,4 +1,4 @@
-import { ArrowLeft, Crosshair, MousePointer2, RotateCcw, Settings, Timer, Trophy, X } from "lucide-react";
+import { ArrowLeft, Crosshair, History, MousePointer2, RotateCcw, Settings, Timer, Trophy, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { SettingsPanel } from "@/components/settings/SettingsPanel";
 import { ResultTrendChart } from "@/components/training/ResultTrendChart";
@@ -244,6 +244,12 @@ export function TrainingPageView({ viewModel }: TrainingPageViewProps) {
                 >
                   <Settings className="h-4 w-4" />
                   {t(`${modeKey}.settings`, { defaultValue: "设置" })}
+                </Button>
+                <Button asChild size="lg" variant="outline" className="py-6">
+                  <Link to="/history" aria-disabled={!areOverlayActionsEnabled} tabIndex={areOverlayActionsEnabled ? undefined : -1}>
+                    <History className="h-4 w-4" />
+                    {t(`${modeKey}.viewHistory`, { defaultValue: "查看历史记录" })}
+                  </Link>
                 </Button>
                 <Button asChild size="lg" variant="outline" className="py-6">
                   <Link to="/" aria-disabled={!areOverlayActionsEnabled} tabIndex={areOverlayActionsEnabled ? undefined : -1}>
