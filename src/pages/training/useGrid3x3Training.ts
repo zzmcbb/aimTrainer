@@ -16,6 +16,8 @@ const spacing = 2.15;
 const targetRadius = 0.88;
 const microTargetScale = 0.55;
 const trackingSampleIntervalMs = 100;
+const trackingReactionMinInputPixels = 0.8;
+const trackingReactionAlignmentThreshold = Math.cos(Math.PI / 4);
 const trackingMovementBounds = { x: 3.6, y: 1.6 };
 const trackingHitColor = 0xff3b30;
 const baseRadiansPerPixel = 0.002;
@@ -71,6 +73,12 @@ interface ScreenShakeState {
   durationMs: number;
   intensity: number;
   startedAt: number;
+}
+
+interface TrackingTurnReaction {
+  changedAt: number;
+  directionX: number;
+  directionY: number;
 }
 
 const gridPositions = Array.from({ length: 9 }, (_, index) => {
@@ -366,6 +374,7 @@ export function useGrid3x3Training(modeId: TrainingModeId = "grid-3x3") {
     target.userData.velocityX = THREE.MathUtils.randFloat(1.45, 2.25);
     target.userData.velocityY = THREE.MathUtils.randFloat(-0.42, 0.42);
     target.userData.nextTurnAt = appearedAt + THREE.MathUtils.randFloat(520, 1250);
+    target.userData.pendingTurnReaction = null;
     gameStateRef.current.lastTargetAppearedAt = appearedAt;
   }, []);
 
@@ -1568,25 +1577,50 @@ export function useGrid3x3Training(modeId: TrainingModeId = "grid-3x3") {
         return;
       }
 
+      const startTurnReaction = () => {
+        const velocityX = target.userData.velocityX ?? 0;
+        const velocityY = target.userData.velocityY ?? 0;
+        const velocityMagnitude = Math.hypot(velocityX, velocityY);
+
+        if (velocityMagnitude <= 0) {
+          target.userData.pendingTurnReaction = null;
+          return;
+        }
+
+        target.userData.pendingTurnReaction = {
+          changedAt: frameNow,
+          directionX: velocityX / velocityMagnitude,
+          directionY: velocityY / velocityMagnitude,
+        } satisfies TrackingTurnReaction;
+      };
+
       if (frameNow >= (target.userData.nextTurnAt ?? 0)) {
         const direction = Math.random() > 0.46 ? 1 : -1;
         target.userData.velocityX = direction * THREE.MathUtils.randFloat(1.25, 2.45);
         target.userData.velocityY = THREE.MathUtils.randFloat(-0.72, 0.72);
         target.userData.nextTurnAt = frameNow + THREE.MathUtils.randFloat(520, 1350);
+        startTurnReaction();
       }
 
       const deltaSeconds = deltaMs / 1000;
       target.position.x += (target.userData.velocityX ?? 1.8) * deltaSeconds;
       target.position.y += (target.userData.velocityY ?? 0) * deltaSeconds;
+      let didBounce = false;
 
       if (target.position.x > trackingMovementBounds.x || target.position.x < -trackingMovementBounds.x) {
         target.position.x = THREE.MathUtils.clamp(target.position.x, -trackingMovementBounds.x, trackingMovementBounds.x);
         target.userData.velocityX = -(target.userData.velocityX ?? 1.8);
+        didBounce = true;
       }
 
       if (target.position.y > trackingMovementBounds.y || target.position.y < -trackingMovementBounds.y) {
         target.position.y = THREE.MathUtils.clamp(target.position.y, -trackingMovementBounds.y, trackingMovementBounds.y);
         target.userData.velocityY = -(target.userData.velocityY ?? 0.35);
+        didBounce = true;
+      }
+
+      if (didBounce) {
+        startTurnReaction();
       }
     };
 
@@ -1611,7 +1645,6 @@ export function useGrid3x3Training(modeId: TrainingModeId = "grid-3x3") {
       if (isOnTarget) {
         gameState.hits += 1;
         bucket.hits += 1;
-        bucket.reactionSamples += 1;
       } else {
         gameState.misses += 1;
       }
@@ -1814,6 +1847,42 @@ export function useGrid3x3Training(modeId: TrainingModeId = "grid-3x3") {
       }
 
       const gameState = gameStateRef.current;
+      if (modeId === "tracking" && phaseRef.current === "running" && gameState.isRunning) {
+        const target = targetRefs.current[0];
+        const pendingReaction = target?.userData.pendingTurnReaction as TrackingTurnReaction | null | undefined;
+
+        if (pendingReaction) {
+          const inputX = event.movementX;
+          const inputY = -event.movementY;
+          const inputMagnitude = Math.hypot(inputX, inputY);
+
+          if (inputMagnitude >= trackingReactionMinInputPixels) {
+            const inputDirectionX = inputX / inputMagnitude;
+            const inputDirectionY = inputY / inputMagnitude;
+            const alignment =
+              inputDirectionX * pendingReaction.directionX +
+              inputDirectionY * pendingReaction.directionY;
+
+            if (alignment >= trackingReactionAlignmentThreshold) {
+              const reactedAt = performance.now();
+              const reactionMs = Math.max(0, reactedAt - pendingReaction.changedAt);
+              const elapsedMs = gameState.durationMs - gameState.remainingMs;
+              const bucketIndex = Math.min(
+                gameState.timeline.length - 1,
+                Math.max(0, Math.floor(elapsedMs / 1000)),
+              );
+              const bucket = gameState.timeline[bucketIndex];
+
+              gameState.reactionSamples.push(reactionMs);
+              bucket.reactionTotalMs += reactionMs;
+              bucket.reactionSamples += 1;
+              target.userData.pendingTurnReaction = null;
+              syncStats();
+            }
+          }
+        }
+      }
+
       gameState.yaw -= event.movementX * sensitivityRef.current.x * baseRadiansPerPixel;
       gameState.pitch -= event.movementY * sensitivityRef.current.y * baseRadiansPerPixel;
       gameState.yaw = THREE.MathUtils.clamp(gameState.yaw, -maxYaw, maxYaw);

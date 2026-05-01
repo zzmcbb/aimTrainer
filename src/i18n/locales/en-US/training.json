@@ -63,7 +63,7 @@
     "misses": "Off-target Samples",
     "mode": "Tracking",
     "paused": "Paused",
-    "reactionTrend": "Stability Distribution",
+    "reactionTrend": "Turn Reaction Distribution",
     "restart": "Restart",
     "settings": "Settings",
     "score": "Score",
