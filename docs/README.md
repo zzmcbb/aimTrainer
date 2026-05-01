@@ -1,19 +1,8 @@
-# Aim Trainer 项目文档索引
-
-建议阅读顺序：
-
-1. [系统功能文档](./system-features.md)：先了解产品能做什么。
-2. [系统架构文档](./system-architecture.md)：了解整体分层、数据流和运行边界。
-3. [代码结构文档](./code-structure.md)：了解目录、文件职责和模块放置规则。
-4. [技术细节实现文档](./technical-implementation.md)：深入训练、音频、历史、i18n、构建等实现。
-5. [代码风格与维护规范](./coding-style.md)：新增功能或重构前先读。
-6. [前后端分离迁移考虑文档](./migration-considerations.md)：准备接后端或账号体系时使用。
-
-这些文档描述的是整个项目当前状态和后续维护规范，不是单次改动说明。
-
 ## 介绍
 
 Aim Trainer 是一个运行在浏览器中的瞄准训练器，面向桌面 Chrome 用户，用于练习九宫格快速定位、微调和跟枪等基础瞄准能力。项目当前是纯前端 MVP，无需后端服务，训练设置、历史记录和自定义音效都保存在浏览器本地。
+<img width="2940" height="1676" alt="image" src="https://github.com/user-attachments/assets/7485987c-c69b-4a94-abfb-1327e603a6dd" />
+
 
 ## 功能特性
 
@@ -102,3 +91,9 @@ scripts/               i18n 提取、同步和补齐脚本
 - 增加更多图表维度和训练复盘视图。
 - 设计后端账号体系、云同步和排行榜。
 - 增强移动端或非 Chrome 浏览器的兼容提示。
+
+## 页面截图
+<img width="2940" height="1676" alt="image" src="https://github.com/user-attachments/assets/7ea4838e-88b1-432e-970f-5aeca5e15d28" />
+<img width="2940" height="1676" alt="image" src="https://github.com/user-attachments/assets/15ad77d4-a9bc-488b-b8ca-d055848d9ac9" />
+<img width="2940" height="1676" alt="image" src="https://github.com/user-attachments/assets/8cad3d5b-3ca3-4897-9ba5-f90657e8b981" />
+
