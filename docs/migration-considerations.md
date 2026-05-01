@@ -135,10 +135,16 @@ ComboSoundPack
   userId
   name
   sourceAssetId
+  builtIn
   clipsJson
   updatedAt
   createdAt
 ```
+
+说明：
+
+- `builtIn` 用于区分系统默认整合包和用户自定义整合包。
+- 服务端落地后，内置整合包可以作为公共模板下发，用户编辑时再 fork 成个人副本。
 
 如果需要分享整合包，可以增加：
 

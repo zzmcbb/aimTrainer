@@ -6,6 +6,7 @@
 .
 ├── docs/                         项目文档
 ├── public/
+│   ├── default-combo-packs/       内置连续击中整合包
 │   ├── images/                   静态图片
 │   └── sounds/                   内置音效
 ├── scripts/                      i18n 辅助脚本
@@ -276,6 +277,7 @@ stores/settings/
 
 ```text
 lib/
+├── builtInComboPacks.ts
 ├── comboSoundPackArchive.ts
 ├── soundAssets.ts
 ├── soundEngine.ts
@@ -286,7 +288,18 @@ lib/
 
 当前主要提供 `cn`，用于合并 className。
 
-### 6.2 `soundAssets.ts`
+### 6.2 `builtInComboPacks.ts`
+
+负责：
+
+- 定义内置连续击中整合包来源。
+- 应用启动后检查并导入缺失的内置整合包。
+- 复用整合包导入逻辑解析内置包。
+- 标记 `builtIn`、同步内置包名称并排序整合包列表。
+
+内置整合包可选中、编辑和导出，但设置面板不允许删除。
+
+### 6.3 `soundAssets.ts`
 
 负责：
 
@@ -295,8 +308,9 @@ lib/
 - 校验 mp3/wav 文件。
 - 上传音频并分析时长、波形峰值。
 - 创建默认自定义音效设置。
+- 对连续击中整合包进行排序，自定义整合包排在内置整合包之前。
 
-### 6.3 `soundEngine.ts`
+### 6.4 `soundEngine.ts`
 
 负责：
 
@@ -304,7 +318,7 @@ lib/
 - 处理 Object URL 生命周期。
 - 返回正在播放的音频对象，供调用方停止或管理。
 
-### 6.4 `comboSoundPackArchive.ts`
+### 6.5 `comboSoundPackArchive.ts`
 
 负责：
 
@@ -356,6 +370,9 @@ pnpm i18n:update
 
 ```text
 public/
+├── default-combo-packs/
+│   ├── changtiao-default.aimcombo.zip
+│   └── jinitaimei-default.aimcombo.zip
 ├── images/
 │   └── hero-bg.jpg
 └── sounds/
@@ -368,7 +385,7 @@ public/
     └── nuke.mp3
 ```
 
-`public` 下的资源以根路径访问，例如 `/sounds/nuke.mp3`。
+`public` 下的资源以根路径访问，例如 `/sounds/nuke.mp3`。内置整合包由 `builtInComboPacks.ts` 通过 `/default-combo-packs/...` 拉取并导入到 IndexedDB。
 
 ## 10. 文件放置原则
 

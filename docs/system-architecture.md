@@ -46,7 +46,7 @@ Aim Trainer 是一个浏览器端瞄准训练应用，当前 MVP 以纯前端单
 - `src/pages`：页面级模块，每个页面负责自己的数据组装、交互状态和视图。
 - `src/components`：跨页面复用组件，包括 UI 基础组件、设置组件、图表组件和视觉组件。
 - `src/stores`：全局状态，目前主要是设置 store。
-- `src/lib`：领域能力和工具函数，如音频素材、音频播放、整合包导入导出、className 合并。
+- `src/lib`：领域能力和工具函数，如音频素材、音频播放、内置整合包同步、整合包导入导出、className 合并。
 - `src/i18n`：轻量国际化系统和语言资源。
 - `src/styles`：全局样式、主题变量和 Tailwind 配置入口。
 
@@ -166,6 +166,8 @@ IndexedDB 通过 Dexie 封装，数据库名为 `aim-trainer-sounds`，表为 `s
 
 设置 store 中不保存音频 Blob，只保存 `assetId` 和片段时间，避免 localStorage 过大或序列化失败。
 
+内置默认整合包也会把音频 Blob 写入同一个 IndexedDB 表。设置中的 pack 通过 `builtIn: true` 标记内置来源；内置 pack 可选中、编辑和导出，但 UI 不允许删除。
+
 ## 7. 训练架构
 
 训练页由 `useGrid3x3Training` 作为主控制器。它包含以下子系统：
@@ -184,10 +186,11 @@ IndexedDB 通过 Dexie 封装，数据库名为 `aim-trainer-sounds`，表为 `s
 
 ## 8. 音效架构
 
-音效系统由三个文件承担：
+音效系统由四个文件承担：
 
 - `lib/soundAssets.ts`：素材上传、IndexedDB 存储、音频分析和默认自定义设置。
 - `lib/soundEngine.ts`：短音效播放、Object URL 管理。
+- `lib/builtInComboPacks.ts`：默认连续击中整合包导入、命名同步、内置标记归一化和列表排序。
 - `lib/comboSoundPackArchive.ts`：连续击中整合包导入导出。
 
 音效类型：
@@ -195,6 +198,7 @@ IndexedDB 通过 Dexie 封装，数据库名为 `aim-trainer-sounds`，表为 `s
 - 默认音效：内置在 `public/sounds`。
 - 单次命中短音效：用户上传单个 mp3/wav，可裁剪播放范围。
 - 连续击中整合包：一个音频文件配多段片段，按连击顺序播放。
+- 内置连续击中整合包：由 `public/default-combo-packs` 提供，启动后自动补齐到本地设置。
 - 未命中短音效：用户上传短音效，未命中时播放。
 
 ## 9. 国际化架构

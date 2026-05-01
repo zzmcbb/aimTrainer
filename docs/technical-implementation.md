@@ -23,6 +23,7 @@
 4. 应用包裹必要 Provider，包括路由和 i18n。
 5. `App.tsx` 根据路由渲染页面。
 6. 页面 hook 初始化自己的状态和副作用。
+7. `main.tsx` 在应用挂载后异步检查内置连续击中整合包，缺失时导入到本地音频库并更新设置。
 
 路由页面懒加载后，首屏主要加载首页相关代码，训练、历史、设置等页面在访问时再加载。
 
@@ -63,6 +64,7 @@ set(partial)
 - color 必须符合 `#[0-9a-f]{6}`。
 - enum 使用专门 reader 校验。
 - 音频片段、整合包等复杂对象逐层读取，坏数据会被丢弃或回退默认值。
+- 连续击中整合包会读取 `builtIn` 标记并排序，旧版 `hit.sequence` 数据会迁移为新的 `comboMusic.clips` 结构。
 
 这个设计保证本地数据损坏时 UI 不会崩溃。
 
@@ -217,7 +219,7 @@ score = (hits * 100 + accuracy * 8 + speedBonus) / durationFactor
 - 汇总统计。
 - 趋势图数据转换。
 
-图表组件使用 ECharts。页面 view model 会把记录转换成图表需要的 label、score、accuracy、hits、averageReaction 等数组。
+图表组件使用 ECharts。页面 view model 会把记录转换成图表需要的 label、accuracy、averageReaction 等数组，用于展示当前模式在日期范围内的命中率和平均反应时间趋势。单次记录详情仍使用命中、命中率和平均反应分布。
 
 ## 7. 音频素材实现
 
@@ -253,6 +255,7 @@ MIME 类型必须在白名单内。上传前会校验扩展名和 MIME 类型。
 
 ```text
 ComboSoundPack
+  builtIn?
   id
   name
   sourceAssetId
@@ -270,9 +273,11 @@ ComboSoundPack
 
 训练时，连续命中会根据连击数选择对应片段。超过最后一段时，根据 overflow behavior 决定重播、循环、保持最后一段等策略。当前 UI 主流程使用从第一段重新开始。
 
+内置整合包由 `builtInComboPacks.ts` 管理。应用启动后会读取 `public/default-combo-packs/*.aimcombo.zip`，复用整合包导入流程生成音频素材和 clips，再以固定 id 写入 `comboMusic.packs`。如果内置包名称变化，启动检查会同步名称；如果用户本地已经有这些内置包，则不会重复导入音频。
+
 ## 9. 整合包导入导出
 
-`comboSoundPackArchive.ts` 使用浏览器 Compression Streams 相关能力处理 zip。整合包包含：
+`comboSoundPackArchive.ts` 直接读写未压缩的 zip entry。整合包包含：
 
 - manifest JSON。
 - 原始音频文件。
@@ -287,6 +292,8 @@ ComboSoundPack
 - clip 时间范围。
 
 导出时会生成 `.aimTrainer.zip` 文件。
+
+`public/default-combo-packs` 中的内置包使用同一套 manifest 和音频结构，但文件扩展名为 `.aimcombo.zip`，由启动导入逻辑内部读取，不作为用户手动导入格式。
 
 ## 10. 国际化实现
 
